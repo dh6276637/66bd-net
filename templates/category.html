@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}{{ category }} - 66必读{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+    <a href="/">首页</a> / <span class="current">{{ category }}</span>
+</div>
+
+<section class="article-list" id="article-list">
+{% if articles and articles|length > 0 %}
+{% for article in articles %}
+<article class="article-item" data-id="{{ article.id }}" data-category="{{ article.category }}">
+    <header class="article-header">
+        <div class="article-category"><a href="/category/{{ article.slug }}" class="kicker">{{ article.category }}</a></div>
+        <h2 class="article-title"><a href="/article/{{ article.id }}">{{ article.title_cn or article.title }}</a></h2>
+        <div class="article-meta">
+            <span class="source-tag" style="background:{{ article.source_config.color }}20; color:{{ article.source_config.color }}">{{ article.source_config.icon }} {{ article.source or '原创' }}</span>
+            <span>{{ article.created_at.strftime('%m-%d') if article.created_at else '' }}</span>
+        </div>
+    </header>
+</article>
+{% endfor %}
+{% else %}
+<p class="no-content">暂无内容</p>
+{% endif %}
+</section>
+
+{% if has_more %}
+<div class="load-more-container">
+    <button id="load-more-btn" class="load-more-btn" data-page="{{ current_page }}" data-category="{{ category }}">
+        <span class="btn-text">加载更多</span>
+        <span class="btn-loading" style="display:none;">加载中...</span>
+    </button>
+</div>
+{% endif %}
+
+<div id="loading-indicator" class="loading-indicator" style="display:none;"><span>加载中...</span></div>
+<div id="no-more-articles" class="no-more-articles" style="display:none;"><span>没有更多了</span></div>
+
+<style>
+.loading-indicator,.no-more-articles{text-align:center;padding:30px;color:#666;font-size:.85em}
+.no-more-articles{border-top:1px solid #eee;margin-top:20px}
+.article-item{border-bottom:1px solid #f0f0f0;padding:16px 0}
+.article-header{margin-bottom:0}
+.article-category{margin-bottom:4px}
+.article-title{font-size:1.1em;margin:6px 0;line-height:1.5;font-weight:600}
+.article-title a{color:var(--text-primary);text-decoration:none}
+.article-title a:hover{color:var(--accent)}
+.article-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:.8em;color:var(--text-secondary)}
+.kicker{font-size:.7em;text-transform:uppercase;color:var(--text-secondary);text-decoration:none;background:var(--bg-hover);padding:2px 8px;border-radius:4px}
+.kicker:hover{color:var(--accent)}
+.source-tag{padding:2px 8px;border-radius:4px;font-size:.8em}
+.load-more-container{text-align:center;padding:20px 0}
+.load-more-btn{
+    background:var(--accent);color:#fff;border:none;padding:12px 40px;border-radius:8px;
+    font-size:1em;cursor:pointer;transition:all .2s;min-width:200px
+}
+.load-more-btn:hover{background:#4338ca;transform:translateY(-1px)}
+.load-more-btn:disabled{background:#ccc;cursor:not-allowed;transform:none}
+.load-more-btn .btn-loading{display:none}
+.load-more-btn.loading .btn-text{display:none}
+.load-more-btn.loading .btn-loading{display:inline}
+</style>
+
+<script>
+let currentPage = {{ current_page }}, isLoading = false, hasMore = {{ 'true' if has_more else 'false' }}, currentCategory = '{{ category }}';
+
+function initPagination() {
+    var loadMoreBtn = document.getElementById('load-more-btn');
+    if (loadMoreBtn) {
+        loadMoreBtn.addEventListener('click', function() {
+            if (!hasMore || isLoading) return;
+            loadMoreArticles();
+        });
+    }
+    
+    // 滚动加载（保留原有功能）
+    window.addEventListener('scroll', function() {
+        if (!hasMore || isLoading || loadMoreBtn) return;
+        if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
+            loadMoreArticles();
+        }
+    });
+}
+
+async function loadMoreArticles() {
+    isLoading = true;
+    var loadMoreBtn = document.getElementById('load-more-btn');
+    if (loadMoreBtn) loadMoreBtn.classList.add('loading');
+    document.getElementById('loading-indicator').style.display = 'block';
+    
+    try {
+        var url = '/api/articles?page=' + (currentPage + 1) + '&category=' + encodeURIComponent(currentCategory);
+        var res = await fetch(url);
+        var json = await res.json();
+        
+        // API返回结构: {code:200, data:{articles:[], has_more:true}}
+        var data = json.data || {};
+        var articles = data.articles || [];
+        
+        if (articles.length > 0) {
+            appendArticles(articles);
+            currentPage++;
+            hasMore = data.has_more === true;
+            
+            if (loadMoreBtn) {
+                loadMoreBtn.dataset.page = currentPage;
+                if (!hasMore) {
+                    loadMoreBtn.style.display = 'none';
+                }
+            }
+        } else {
+            hasMore = false;
+            if (loadMoreBtn) loadMoreBtn.style.display = 'none';
+        }
+    } catch (err) {
+        console.error(err);
+        if (loadMoreBtn) {
+            loadMoreBtn.querySelector('.btn-text').textContent = '加载失败，点击重试';
+        }
+    }
+    
+    document.getElementById('loading-indicator').style.display = 'none';
+    if (loadMoreBtn) loadMoreBtn.classList.remove('loading');
+    if (!hasMore) document.getElementById('no-more-articles').style.display = 'block';
+    isLoading = false;
+}
+
+function appendArticles(articles) {
+    var container = document.getElementById('article-list');
+    articles.forEach(function(a) {
+        var div = document.createElement('article');
+        div.className = 'article-item';
+        div.dataset.id = a.id;
+        var title = a.title_cn || a.title;
+        var color = a.source_config ? a.source_config.color : '#666';
+        var icon = a.source_config ? a.source_config.icon : '';
+        var source = a.source || '原创';
+        var date = a.created_at ? a.created_at.substring(5, 10) : '';
+        div.innerHTML = '<header class="article-header"><div class="article-category"><a href="/category/' + a.slug + '" class="kicker">' + a.category + '</a></div><h2 class="article-title"><a href="/article/' + a.id + '">' + title + '</a></h2><div class="article-meta"><span class="source-tag" style="background:' + color + '20;color:' + color + '">' + icon + ' ' + source + '</span><span>' + date + '</span></div></header>';
+        container.appendChild(div);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', initPagination);
+</script>
+{% endblock %}

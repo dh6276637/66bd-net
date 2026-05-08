@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /static/admin/
+Sitemap: https://www.66bd.net/sitemap.xml
+Crawl-delay: 1

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>服务器监控 - 66必读管理后台</title>
+    <link rel="stylesheet" href="/static/css/admin.css">
+    <style>
+        .refresh-btn { padding: 8px 16px; background: var(--primary); color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        .refresh-btn:hover { background: var(--primary-light); }
+        .usage-high { color: var(--danger); }
+        .usage-mid { color: var(--warning); }
+        .usage-low { color: var(--success); }
+        .loading { text-align: center; padding: 60px; color: var(--text-secondary); }
+        .error-box { background: rgba(245, 108, 108, 0.1); border: 1px solid var(--danger); color: var(--danger); padding: 20px; border-radius: 8px; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="admin-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header"><div class="sidebar-logo">📖 66必读</div></div>
+            <nav class="sidebar-nav">
+                <a href="/admin/" class="nav-item"><span class="nav-icon">📊</span><span class="nav-text">数据看板</span></a>
+                <a href="/admin/articles" class="nav-item"><span class="nav-icon">📝</span><span class="nav-text">文章管理</span></a>
+                <a href="/admin/articles/new" class="nav-item"><span class="nav-icon">➕</span><span class="nav-text">发布文章</span></a>
+                <a href="/admin/categories" class="nav-item"><span class="nav-icon">📂</span><span class="nav-text">分类管理</span></a>
+                <a href="/admin/cron-log" class="nav-item"><span class="nav-icon">📜</span><span class="nav-text">采集日志</span></a>
+                <a href="/admin/settings" class="nav-item"><span class="nav-icon">⚙️</span><span class="nav-text">站点设置</span></a>
+                <a href="/admin/monitor" class="nav-item active"><span class="nav-icon">📈</span><span class="nav-text">服务器监控</span></a>
+                <a href="/admin/users" class="nav-item"><span class="nav-icon">👥</span><span class="nav-text">用户管理</span></a>
+                <a href="/" class="nav-item"><span class="nav-icon">👀</span><span class="nav-text">查看网站</span></a>
+            </nav>
+        </aside>
+        <main class="main-content">
+            <div class="page-header">
+                <h1 class="page-title">服务器监控</h1>
+                <button class="refresh-btn" onclick="loadStats()">🔄 刷新</button>
+            </div>
+            
+            <div id="stats-content">
+                <div class="loading">⏳ 加载中...</div>
+            </div>
+            
+            <div style="text-align:center;color:var(--text-secondary);font-size:13px;margin-top:15px;">
+                自动刷新: <span id="countdown">30</span> 秒后
+            </div>
+        </main>
+    </div>
+    
+    <script>
+        let countdown = 30;
+        
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return (bytes / Math.pow(k, i)).toFixed(2) + ' ' + sizes[i];
+        }
+        
+        function getUsageClass(percent) {
+            if (percent >= 80) return 'usage-high';
+            if (percent >= 50) return 'usage-mid';
+            return 'usage-low';
+        }
+        
+        function getProgressColor(percent) {
+            if (percent >= 80) return 'var(--danger)';
+            if (percent >= 50) return 'var(--warning)';
+            return 'var(--success)';
+        }
+        
+        function loadStats() {
+            fetch('/api/server/stats')
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success) {
+                        document.getElementById('stats-content').innerHTML = '<div class="error-box">❌ 加载失败: ' + (data.error || '未知错误') + '</div>';
+                        return;
+                    }
+                    
+                    const cpuClass = getUsageClass(data.cpu);
+                    const memClass = getUsageClass(data.memory.percent);
+                    const diskClass = getUsageClass(data.disk.percent);
+                    
+                    let html = `
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-icon" style="background:rgba(64,158,255,0.1);color:var(--primary);">🖥️</div>
+                                <div class="stat-value ${cpuClass}">${data.cpu.toFixed(1)}%</div>
+                                <div class="stat-label">CPU 使用率</div>
+                                <div class="progress" style="margin-top:10px;"><div class="progress-bar" style="width:${data.cpu}%;background:${getProgressColor(data.cpu)};"></div></div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon" style="background:rgba(103,194,58,0.1);color:var(--success);">💾</div>
+                                <div class="stat-value ${memClass}">${data.memory.percent.toFixed(1)}%</div>
+                                <div class="stat-label">内存使用率</div>
+                                <div style="font-size:12px;color:var(--text-secondary);margin-top:5px;">${formatBytes(data.memory.used)} / ${formatBytes(data.memory.total)}</div>
+                                <div class="progress" style="margin-top:10px;"><div class="progress-bar" style="width:${data.memory.percent}%;background:${getProgressColor(data.memory.percent)};"></div></div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon" style="background:rgba(230,162,60,0.1);color:var(--warning);">💿</div>
+                                <div class="stat-value ${diskClass}">${data.disk.percent.toFixed(1)}%</div>
+                                <div class="stat-label">磁盘使用率</div>
+                                <div style="font-size:12px;color:var(--text-secondary);margin-top:5px;">${formatBytes(data.disk.used)} / ${formatBytes(data.disk.total)}</div>
+                                <div class="progress" style="margin-top:10px;"><div class="progress-bar" style="width:${data.disk.percent}%;background:${getProgressColor(data.disk.percent)};"></div></div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon" style="background:rgba(144,147,153,0.1);color:var(--info);">📊</div>
+                                <div class="stat-value">${data.loadavg ? data.loadavg[0].toFixed(2) : 'N/A'}</div>
+                                <div class="stat-label">系统负载 (1m)</div>
+                                <div style="font-size:12px;color:var(--text-secondary);margin-top:5px;">5m: ${data.loadavg ? data.loadavg[1].toFixed(2) : 'N/A'} / 15m: ${data.loadavg ? data.loadavg[2].toFixed(2) : 'N/A'}</div>
+                            </div>
+                        </div>`;
+                    
+                    if (data.processes && data.processes.length > 0) {
+                        html += `
+                        <div class="card" style="margin-top:20px;">
+                            <div class="card-header"><span class="card-title">⚙️ 运行进程</span></div>
+                            <table>
+                                <thead><tr><th>PID</th><th>进程名</th><th>CPU%</th><th>内存%</th><th>运行时间</th></tr></thead>
+                                <tbody>`;
+                        data.processes.forEach(p => {
+                            html += `<tr><td>${p.pid}</td><td><code>${p.name}</code></td><td>${p.cpu}</td><td>${p.mem}</td><td>${p.uptime}</td></tr>`;
+                        });
+                        html += `</tbody></table></div>`;
+                    }
+                    
+                    document.getElementById('stats-content').innerHTML = html;
+                    countdown = 30;
+                })
+                .catch(err => {
+                    document.getElementById('stats-content').innerHTML = '<div class="error-box">❌ 网络错误: ' + err.message + '</div>';
+                });
+        }
+        
+        setInterval(() => {
+            countdown--;
+            document.getElementById('countdown').textContent = countdown;
+            if (countdown <= 0) loadStats();
+        }, 1000);
+        
+        loadStats();
+    </script>
+</body>
+</html>

@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="favorites-page">
+    <h1>我的收藏 <span class="count">({{ total }})</span></h1>
+    
+    <div id="favorites-list">
+    {% if articles and articles|length > 0 %}
+    {% for article in articles %}
+    <article class="article-item">
+        <header class="article-header">
+            <div class="article-category"><a href="/category/{{ article.slug }}" class="kicker">{{ article.category }}</a></div>
+            <h2 class="article-title"><a href="/article/{{ article.id }}">{{ article.title_cn or article.title }}</a></h2>
+            <div class="article-meta">
+                <span class="source-tag" style="background:{{ article.source_config.color }}20; color:{{ article.source_config.color }}">{{ article.source_config.icon }} {{ article.source or '原创' }}</span>
+                <span>{{ article.created_at.strftime('%Y-%m-%d') if article.created_at else '' }}</span>
+                <span class="favorite-btn active" onclick="toggleFavorite({{ article.id }}, this)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                </span>
+            </div>
+        </header>
+    </article>
+    {% endfor %}
+    {% else %}
+    <p class="empty">暂无收藏</p>
+    {% endif %}
+    </div>
+    
+    {% if has_more %}
+    <div id="load-more" style="text-align:center;padding:20px;">
+        <button onclick="loadMore()" class="btn">加载更多</button>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.favorites-page { max-width: 800px; margin: 0 auto; }
+.favorites-page h1 { margin-bottom: 30px; font-size: 1.8em; }
+.favorites-page h1 .count { font-size: 0.6em; color: #666; }
+.article-item { border-bottom: 1px solid #f0f0f0; padding-bottom: 20px; margin-bottom: 20px; }
+.article-header { margin-bottom: 10px; }
+.article-title { font-size: 1.2em; margin: 8px 0; }
+.article-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-family: var(--wired-font-mono); font-size: 0.7em; color: #666; }
+.kicker { text-transform: uppercase; }
+.favorite-btn { cursor: pointer; color: #ff4444; }
+.empty { text-align: center; padding: 50px; color: #666; }
+.btn { font-family: var(--wired-font-mono); font-size: 0.85em; padding: 10px 20px; border: 1px solid var(--wired-black); background: var(--wired-white); cursor: pointer; }
+.btn:hover { background: var(--wired-black); color: var(--wired-white); }
+</style>
+
+<script>
+let page = {{ page }}, hasMore = {{ 'true' if has_more else 'false' }};
+
+async function loadMore() {
+    const btn = document.querySelector('#load-more button');
+    btn.disabled = true; btn.textContent = '加载中...';
+    try {
+        const res = await fetch('/user/favorites?page=' + (page + 1), {headers:{'Accept':'text/html'}});
+        const html = await res.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const items = doc.querySelectorAll('#favorites-list .article-item');
+        items.forEach(item => document.getElementById('favorites-list').appendChild(item));
+        page++;
+        hasMore = doc.querySelector('#load-more') !== null;
+        if (!hasMore) document.getElementById('load-more').style.display = 'none';
+        else { btn.disabled = false; btn.textContent = '加载更多'; }
+    } catch (err) { btn.disabled = false; btn.textContent = '加载更多'; }
+}
+</script>
+{% endblock %}

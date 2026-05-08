@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}报纸 - 66必读{% endblock %}
+
+{% block content %}
+<div class="newspaper-list">
+    <h1 class="page-title">📰 报纸</h1>
+    <p class="page-desc">点击日期查看当日精选内容</p>
+    
+    <div class="date-list">
+        {% for d in dates %}
+        <a href="{{ url_for('newspaper_date', date=d.date_str) }}" class="date-item {% if d.date_str == today %}today{% endif %}">
+            <span class="date-day">{{ d.date_str }}</span>
+            {% if d.date_str == today %}
+            <span class="today-tag">今日报</span>
+            {% endif %}
+            <span class="article-count">{{ d.cnt }}篇</span>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

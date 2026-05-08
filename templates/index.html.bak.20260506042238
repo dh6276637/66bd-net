@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">66必读</h1>
+    <p class="page-subtitle">{{ today }}</p>
+</div>
+
+<!-- 分类导航 - 横向滚动标签条 -->
+<div class="category-nav-scroll">
+    <div class="category-nav-inner">
+        <a href="/" class="category-tag active">全部</a>
+        <a href="/category/politics" class="category-tag">时政热点</a>
+        <a href="/category/tech" class="category-tag">科技头条</a>
+        <a href="/category/ctf" class="category-tag">CTF安全</a>
+        <a href="/category/ai" class="category-tag">智能AI</a>
+        <a href="/category/opensource" class="category-tag">开源推荐</a>
+        <a href="/category/dev" class="category-tag">开发者生态</a>
+        <a href="/category/hardware" class="category-tag">数码硬件</a>
+        <a href="/category/tips" class="category-tag">技术小贴士</a>
+    </div>
+</div>
+
+<section class="article-list" id="article-list">
+{% if articles and articles|length > 0 %}
+<article class="featured-article" data-category="{{ articles[0].category }}">
+    <header class="article-header">
+        <div class="article-category"><a href="/category/{{ articles[0].category }}" class="kicker blue">{{ articles[0].category }}</a></div>
+        <h2 class="article-title"><a href="/article/{{ articles[0].id }}">{{ articles[0].title }}</a></h2>
+        <div class="article-meta">
+            <span class="source">{{ articles[0].source or '原创' }}</span>
+            <span>·</span>
+            <span>{{ articles[0].publish_date.strftime('%Y-%m-%d') if articles[0].publish_date else '' }}</span>
+        </div>
+    </header>
+    <div class="article-excerpt">
+        <p>{% if articles[0].content_cn %}{{ articles[0].content_cn[:300] + '...' if articles[0].content_cn|length > 300 else articles[0].content_cn }}{% else %}{{ articles[0].content[:300] + '...' if articles[0].content|length > 300 else articles[0].content }}{% endif %}</p>
+    </div>
+</article>
+{% endif %}
+
+{% if articles and articles|length > 1 %}
+{% for article in articles[1:] %}
+<article class="article-item" data-category="{{ article.category }}">
+    <header class="article-header">
+        <div class="article-category"><a href="/category/{{ article.category }}" class="kicker">{{ article.category }}</a></div>
+        <h2 class="article-title"><a href="/article/{{ article.id }}">{{ article.title }}</a></h2>
+        <div class="article-meta">
+            <span class="source">{{ article.source or '原创' }}</span>
+            <span>·</span>
+            <span>{{ article.publish_date.strftime('%Y-%m-%d') if article.publish_date else '' }}</span>
+        </div>
+    </header>
+    <div class="article-excerpt">
+        <p>{% if article.content_cn %}{{ article.content_cn[:200] + '...' if article.content_cn|length > 200 else article.content_cn }}{% else %}{{ article.content[:200] + '...' if article.content|length > 200 else article.content }}{% endif %}</p>
+    </div>
+</article>
+{% endfor %}
+{% elif not articles %}
+<p class="text-center">暂无内容</p>
+{% endif %}
+</section>
+
+
+{% endblock %}

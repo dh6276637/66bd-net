@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">66必读</h1>
+    <p class="page-subtitle">{{ today }}</p>
+</div>
+
+<!-- 分类导航 - 横向滚动标签条 -->
+<div class="category-nav-scroll">
+    <div class="category-nav-inner">
+        <a href="/" class="category-tag active" data-category="">全部</a>
+        {% for cat in categories %}
+        <a href="/category/{{ name_to_slug.get(cat, 'index') }}" class="category-tag" data-category="{{ cat }}">{{ cat }}</a>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- 文章列表 -->
+<section class="article-list" id="article-list">
+{% if articles and articles|length > 0 %}
+{% for article in articles %}
+<article class="article-item" data-id="{{ article.id }}" data-category="{{ article.category }}">
+    <header class="article-header">
+        <div class="article-category"><a href="/category/{{ article.slug }}" class="kicker">{{ article.category }}</a></div>
+        <h2 class="article-title"><a href="/article/{{ article.id }}">{{ article.title }}</a></h2>
+        <div class="article-meta">
+            <span class="source-tag" style="background:{{ article.source_config.color }}20; color:{{ article.source_config.color }}">{{ article.source_config.icon }} {{ article.source or '原创' }}</span>
+            <span>{{ article.created_at.strftime('%Y-%m-%d') if article.created_at else '' }}</span>
+            <span class="favorite-btn {% if article.id in favorite_ids %}active{% endif %}" onclick="toggleFavorite({{ article.id }}, this)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+            </span>
+        </div>
+    </header>
+    <div class="article-excerpt">
+        <p>{% if article.content_cn %}{{ article.content_cn[:200] + '...' if article.content_cn|length > 200 else article.content_cn }}{% else %}{{ article.content[:200] + '...' if article.content|length > 200 else article.content }}{% endif %}</p>
+    </div>
+</article>
+{% endfor %}
+{% elif not articles %}
+<p class="text-center">暂无内容</p>
+{% endif %}
+</section>
+
+<div id="loading-indicator" class="loading-indicator" style="display:none;"><span>加载中...</span></div>
+<div id="no-more-articles" class="no-more-articles" style="display:none;"><span>没有更多文章了</span></div>
+
+<style>
+.loading-indicator, .no-more-articles { text-align: center; padding: 30px; color: #666; font-family: var(--wired-font-mono); font-size: 0.85em; }
+.no-more-articles { border-top: 1px solid #eee; margin-top: 20px; }
+.article-item { border-bottom: 1px solid #f0f0f0; padding-bottom: 25px; margin-bottom: 25px; }
+.article-header { margin-bottom: 10px; }
+.article-title { font-size: 1.2em; margin: 8px 0; line-height: 1.4; }
+.article-title a:hover { text-decoration: underline; }
+.article-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.kicker { font-family: var(--wired-font-mono); font-size: 0.65em; text-transform: uppercase; color: #666; }
+.kicker:hover { color: #000; }
+.article-excerpt { color: #444; font-size: 0.95em; }
+.article-excerpt p { margin: 0; }
+</style>
+
+<script>
+let currentPage = 1, isLoading = false, hasMore = true, currentCategory = '';
+const favoriteIds = {{ favorite_ids|tojson }};
+
+function initInfiniteScroll() {
+    const activeTag = document.querySelector('.category-tag.active');
+    if (activeTag && activeTag.dataset.category !== undefined) {
+        currentCategory = activeTag.dataset.category;
+    }
+    window.addEventListener('scroll', function() {
+        if (!hasMore || isLoading) return;
+        if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
+            loadMoreArticles();
+        }
+    });
+}
+
+async function loadMoreArticles() {
+    isLoading = true;
+    document.getElementById('loading-indicator').style.display = 'block';
+    try {
+        const url = '/api/articles?page=' + (currentPage + 1) + (currentCategory ? '&category=' + encodeURIComponent(currentCategory) : '');
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.articles && data.articles.length > 0) {
+            appendArticles(data.articles, data.favorite_ids || []);
+            currentPage++;
+            hasMore = data.has_more;
+        } else {
+            hasMore = false;
+        }
+    } catch (err) { console.error(err); }
+    document.getElementById('loading-indicator').style.display = 'none';
+    if (!hasMore) document.getElementById('no-more-articles').style.display = 'block';
+    isLoading = false;
+}
+
+function appendArticles(articles, newFavIds) {
+    const container = document.getElementById('article-list');
+    articles.forEach(a => {
+        const div = document.createElement('article');
+        div.className = 'article-item';
+        div.dataset.id = a.id;
+        div.innerHTML = '<header class="article-header"><div class="article-category"><a href="/category/' + a.slug + '" class="kicker">' + a.category + '</a></div><h2 class="article-title"><a href="/article/' + a.id + '">' + a.title + '</a></h2><div class="article-meta"><span class="source-tag" style="background:' + (a.source_config ? a.source_config.color : '#666') + '20; color:' + (a.source_config ? a.source_config.color : '#666') + '">' + (a.source_config ? a.source_config.icon : '') + ' ' + (a.source || '原创') + '</span><span>' + (a.created_at ? a.created_at.substring(0, 10) : '') + '</span><span class="favorite-btn' + (newFavIds.includes(a.id) ? ' active' : '') + '" onclick="toggleFavorite(' + a.id + ', this)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg></span></div></header><div class="article-excerpt"><p>' + ((a.content_cn || a.content || '').substring(0, 200)) + '</p></div>';
+        container.appendChild(div);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', initInfiniteScroll);
+</script>
+{% endblock %}

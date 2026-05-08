@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block title %}留言板 - 66必读{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">留言板</h1>
+    <p class="page-subtitle">欢迎留下您的宝贵意见</p>
+</div>
+
+<!-- 留言表单 -->
+<section class="message-form-section">
+    <h2>发表留言</h2>
+    <form id="message-form" class="message-form">
+        <div class="form-group">
+            <label for="nickname">昵称</label>
+            <input type="text" id="nickname" name="nickname" placeholder="请输入昵称" required minlength="2" maxlength="50">
+        </div>
+        <div class="form-group">
+            <label for="content">留言内容</label>
+            <textarea id="content" name="content" placeholder="请输入您的留言（5-1000字）" required minlength="5" maxlength="1000" rows="5"></textarea>
+            <div class="char-count"><span id="char-count">0</span>/1000</div>
+        </div>
+        <button type="submit" class="btn-submit">提交留言</button>
+    </form>
+    <div id="form-message" class="form-message"></div>
+</section>
+
+<!-- 留言列表 -->
+<section class="message-list-section">
+    <h2>精选留言 <span class="message-count">(<span id="message-count">{{ messages|length }}</span>条)</span></h2>
+    
+    <div id="message-list" class="message-list">
+        {% if messages %}
+            {% for msg in messages %}
+            <div class="message-item" data-id="{{ msg.id }}">
+                <div class="message-header">
+                    <span class="message-nickname">{{ msg.nickname|e }}</span>
+                    <span class="message-time">{{ msg.created_at.strftime('%Y-%m-%d %H:%M') if msg.created_at else '' }}</span>
+                </div>
+                <div class="message-content">{{ msg.content|e|replace('\n', '<br>')|safe }}</div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="no-messages">暂无留言，来说点什么吧~</p>
+        {% endif %}
+    </div>
+</section>
+
+<style>
+.message-form-section {
+    background: #f8f9fa;
+    padding: 30px;
+    border-radius: 8px;
+    margin-bottom: 40px;
+}
+.message-form-section h2 {
+    margin-bottom: 20px;
+    font-size: 1.5em;
+}
+.message-form .form-group {
+    margin-bottom: 20px;
+}
+.message-form label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+.message-form input,
+.message-form textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: inherit;
+}
+.message-form input:focus,
+.message-form textarea:focus {
+    outline: none;
+    border-color: #1a1a2e;
+}
+.char-count {
+    text-align: right;
+    font-size: 12px;
+    color: #666;
+    margin-top: 5px;
+}
+.btn-submit {
+    background: #1a1a2e;
+    color: #fff;
+    border: none;
+    padding: 12px 30px;
+    font-size: 14px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-family: var(--wired-font-mono);
+    text-transform: uppercase;
+}
+.btn-submit:hover {
+    background: #333;
+}
+.form-message {
+    margin-top: 15px;
+    padding: 10px;
+    border-radius: 4px;
+    display: none;
+}
+.form-message.success {
+    background: #d4edda;
+    color: #155724;
+    display: block;
+}
+.form-message.error {
+    background: #f8d7da;
+    color: #721c24;
+    display: block;
+}
+
+.message-list-section h2 {
+    margin-bottom: 20px;
+    font-size: 1.5em;
+}
+.message-count {
+    font-size: 0.7em;
+    color: #666;
+}
+.message-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+.message-item {
+    background: #fff;
+    border: 1px solid #eee;
+    padding: 20px;
+    border-radius: 8px;
+}
+.message-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-size: 0.9em;
+}
+.message-nickname {
+    font-weight: 600;
+    color: #1a1a2e;
+}
+.message-time {
+    color: #999;
+    font-family: var(--wired-font-mono);
+    font-size: 0.85em;
+}
+.message-content {
+    color: #333;
+    line-height: 1.8;
+    white-space: pre-wrap;
+}
+.no-messages {
+    text-align: center;
+    color: #999;
+    padding: 40px;
+}
+</style>
+
+<script>
+// 字符计数
+document.getElementById('content').addEventListener('input', function() {
+    document.getElementById('char-count').textContent = this.value.length;
+});
+
+// 提交留言
+document.getElementById('message-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const nickname = document.getElementById('nickname').value.trim();
+    const content = document.getElementById('content').value.trim();
+    const formMessage = document.getElementById('form-message');
+    
+    formMessage.className = 'form-message';
+    formMessage.style.display = 'none';
+    
+    try {
+        const response = await fetch('/api/messages', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({nickname, content})
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            formMessage.textContent = '留言成功，感谢您的参与！';
+            formMessage.className = 'form-message success';
+            document.getElementById('content').value = '';
+            document.getElementById('char-count').textContent = '0';
+            
+            // 刷新留言列表
+            loadMessages();
+        } else {
+            formMessage.textContent = data.error || '提交失败，请重试';
+            formMessage.className = 'form-message error';
+        }
+    } catch (err) {
+        formMessage.textContent = '网络错误，请稍后重试';
+        formMessage.className = 'form-message error';
+    }
+});
+
+// 加载留言列表
+async function loadMessages() {
+    try {
+        const response = await fetch('/api/messages');
+        const data = await response.json();
+        
+        if (data.success && data.messages) {
+            const list = document.getElementById('message-list');
+            document.getElementById('message-count').textContent = data.messages.length;
+            
+            if (data.messages.length > 0) {
+                list.innerHTML = data.messages.map(msg => `
+                    <div class="message-item" data-id="${msg.id}">
+                        <div class="message-header">
+                            <span class="message-nickname">${escapeHtml(msg.nickname)}</span>
+                            <span class="message-time">${msg.created_at || ''}</span>
+                        </div>
+                        <div class="message-content">${escapeHtml(msg.content).replace(/\n/g, '<br>')}</div>
+                    </div>
+                `).join('');
+            } else {
+                list.innerHTML = '<p class="no-messages">暂无留言，来说点什么吧~</p>';
+            }
+        }
+    } catch (err) {
+        console.log('Failed to load messages');
+    }
+}
+
+// HTML转义
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
+{% endblock %}

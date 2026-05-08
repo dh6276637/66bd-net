@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- 报纸版头 -->
+<div class="paper-header">
+    <h1 class="paper-title">66必读</h1>
+    <p class="paper-subtitle">第 {{ edition_number }} 期 · {{ date }}</p>
+</div>
+
+<!-- 报纸内容 -->
+<div class="paper-sections">
+    <!-- 早报 -->
+    <section class="paper-section">
+        <h2 class="section-headline blue">
+            <span class="edition-badge morning">早报</span>
+        </h2>
+        
+        {% if morning_articles %}
+        {% for article in morning_articles %}
+        <article class="paper-article">
+            <h3 class="paper-article-title">
+                <a href="{{ article.url }}">{{ article.title }}</a>
+            </h3>
+            <div class="paper-article-meta">
+                <span>{{ article.source }}</span>
+                <span>·</span>
+                <span>{{ article.time }}</span>
+            </div>
+            <div class="paper-article-content">
+                <p>{{ article.summary }}</p>
+            </div>
+        </article>
+        {% endfor %}
+        {% else %}
+        <p class="paper-article-content">暂无早报内容</p>
+        {% endif %}
+    </section>
+
+    <!-- 晚报 -->
+    <section class="paper-section">
+        <h2 class="section-headline amber">
+            <span class="edition-badge evening">晚报</span>
+        </h2>
+        
+        {% if evening_articles %}
+        {% for article in evening_articles %}
+        <article class="paper-article">
+            <h3 class="paper-article-title">
+                <a href="{{ article.url }}">{{ article.title }}</a>
+            </h3>
+            <div class="paper-article-meta">
+                <span>{{ article.source }}</span>
+                <span>·</span>
+                <span>{{ article.time }}</span>
+            </div>
+            <div class="paper-article-content">
+                <p>{{ article.summary }}</p>
+            </div>
+        </article>
+        {% endfor %}
+        {% else %}
+        <p class="paper-article-content">暂无晚报内容</p>
+        {% endif %}
+    </section>
+</div>
+
+<!-- 更多阅读 -->
+<div class="mt-lg text-center">
+    <a href="/" class="btn">返回首页</a>
+</div>
+{% endblock %}

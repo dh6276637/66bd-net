@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">66必读</h1>
+    <p class="page-subtitle">{{ today }}</p>
+</div>
+
+<!-- 分类导航 - 横向滚动标签条 -->
+<div class="category-nav-scroll">
+    <div class="category-nav-inner">
+        <a href="/" class="category-tag">全部</a>
+        <a href="/category/politics" class="category-tag {% if category_slug == 'politics' %}active{% endif %}">时政热点</a>
+        <a href="/category/tech" class="category-tag {% if category_slug == 'tech' %}active{% endif %}">科技头条</a>
+        <a href="/category/ctf" class="category-tag {% if category_slug == 'ctf' %}active{% endif %}">CTF安全</a>
+        <a href="/category/ai" class="category-tag {% if category_slug == 'ai' %}active{% endif %}">智能AI</a>
+        <a href="/category/opensource" class="category-tag {% if category_slug == 'opensource' %}active{% endif %}">开源推荐</a>
+        <a href="/category/dev" class="category-tag {% if category_slug == 'dev' %}active{% endif %}">开发者生态</a>
+        <a href="/category/hardware" class="category-tag {% if category_slug == 'hardware' %}active{% endif %}">数码硬件</a>
+        <a href="/category/tips" class="category-tag {% if category_slug == 'tips' %}active{% endif %}">技术小贴士</a>
+    </div>
+</div>
+
+<!-- 面包屑 -->
+<div class="breadcrumb">
+    <a href="/">首页</a>
+    <span class="breadcrumb-sep">&gt;</span>
+    <span class="current">{{ category_name }}</span>
+</div>
+
+<!-- 分类大标题 -->
+<div class="category-header">
+    <h2 class="category-title">{{ category_name }}</h2>
+</div>
+
+<!-- 文章列表 -->
+<section class="article-list" id="article-list">
+{% if articles and articles|length > 0 %}
+<article class="featured-article">
+    <header class="article-header">
+        <div class="article-category">
+            <span class="kicker blue">{{ articles[0].category }}</span>
+        </div>
+        <h2 class="article-title"><a href="/article/{{ articles[0].id }}">{{ articles[0].title }}</a></h2>
+        <div class="article-meta">
+            <span class="source">{{ articles[0].source or '原创' }}</span>
+            <span>·</span>
+            <span>{{ articles[0].publish_date.strftime('%Y-%m-%d') if articles[0].publish_date else '' }}</span>
+        </div>
+    </header>
+    <div class="article-excerpt">
+        <p>{% if articles[0].content_cn %}{{ articles[0].content_cn[:300] }}{% else %}{{ articles[0].content[:300] }}{% endif %}</p>
+    </div>
+</article>
+
+{% if articles|length > 1 %}
+{% for article in articles[1:] %}
+<article class="article-item">
+    <header class="article-header">
+        <div class="article-category">
+            <span class="kicker">{{ article.category }}</span>
+        </div>
+        <h2 class="article-title"><a href="/article/{{ article.id }}">{{ article.title }}</a></h2>
+        <div class="article-meta">
+            <span class="source">{{ article.source or '原创' }}</span>
+            <span>·</span>
+            <span>{{ article.publish_date.strftime('%Y-%m-%d') if article.publish_date else '' }}</span>
+        </div>
+    </header>
+    <div class="article-excerpt">
+        <p>{% if article.content_cn %}{{ article.content_cn[:200] }}{% else %}{{ article.content[:200] }}{% endif %}</p>
+    </div>
+</article>
+{% endfor %}
+{% endif %}
+{% else %}
+<p class="text-center no-content">该分类暂无内容</p>
+{% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,3 @@
+0 3 * * * /usr/bin/certbot renew --quiet --post-hook "/usr/bin/systemctl reload nginx"
+15 3 * * * curl -s -X POST http://127.0.0.1:5000/api/track/aggregate > /dev/null 2>&1
+0 * * * * cd /var/www/dongshushu-paper && /usr/bin/python3 cron_collect.py >> /var/www/dongshushu-paper/cron_collect.log 2>&1

@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="robots" content="index, follow">
+    <meta name="applicable-device" content="pc,mobile">
+    <meta name="theme-color" content="#fafafa">
+    <title>{% block title %}{% if seo and seo.title %}{{ seo.title }}{% else %}66必读 - 每日精选科技资讯{% endif %}{% endblock %}</title>
+    <meta name="description" content="{% block description %}66必读，简洁、高效、无干扰的阅读体验，让信息获取更加纯粹。{% endblock %}">
+    <link rel="canonical" href="{{ request.url }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/wired-style.css?v=4">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-inner">
+            <a href="/" class="nav-logo">📡 66必读</a>
+            <ul class="nav-links">
+                <li><a href="/" {% if request.path == '/' %}class="active"{% endif %}>首页</a></li>
+                <li><a href="/newspaper" {% if '/newspaper' in request.path %}class="active"{% endif %}>报纸</a></li>
+                <li><a href="/messages">留言板</a></li>
+                <li><a href="/about">关于</a></li>
+            </ul>
+            <div class="nav-user">
+                {% if user_id %}
+                <a href="/user/favorites">⭐ 收藏</a>
+                <a href="#" onclick="logout(); return false;">退出</a>
+                {% else %}
+                <a href="#" onclick="showLogin(); return false;">登录</a>
+                {% endif %}
+            </div>
+            <button class="nav-mobile-btn" onclick="toggleMobileMenu()">☰</button>
+        </div>
+        <div class="mobile-menu" id="mobile-menu">
+            <a href="/" {% if request.path == '/' %}class="active"{% endif %}>首页</a>
+            <a href="/newspaper" {% if '/newspaper' in request.path %}class="active"{% endif %}>报纸</a>
+            <a href="/messages">留言板</a>
+            <a href="/about">关于</a>
+            {% if user_id %}
+            <a href="/user/favorites">⭐ 收藏</a>
+            <a href="#" onclick="logout(); return false;">退出</a>
+            {% else %}
+            <a href="#" onclick="showLogin(); return false;">登录</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    {% block category_bar %}
+    {% if show_category_bar != False %}
+    <div class="category-bar">
+        <div class="category-list">
+            <a href="/" class="category-item {% if request.path == '/' %}active{% endif %}">全部</a>
+            {% for cat in categories %}
+            <a href="/category/{{ name_to_slug.get(cat, cat) }}" class="category-item {% if name_to_slug.get(cat) == slug %}active{% endif %}">{{ cat }}</a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    {% endblock %}
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <div class="footer-content">
+            <p>📡 66必读 · 简洁、高效、无干扰的阅读体验</p>
+            <p style="margin-top: 8px;">
+                <a href="/">首页</a> · 
+                <a href="/newspaper">报纸</a> · 
+                <a href="/rss.xml">RSS</a> · 
+                <a href="/about">关于</a>
+            </p>
+        </div>
+    </footer>
+    <!-- 返回顶部按钮 -->
+    <button id="backToTop" class="back-to-top" onclick="backToTop()" title="返回顶部">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 15l-6-6-6 6"/>
+        </svg>
+    </button>
+
+
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal('loginModal')">×</span>
+            <h2>登录</h2>
+            <form onsubmit="handleLogin(event)">
+                <div class="form-group"><label>用户名或邮箱</label><input type="text" name="username" required></div>
+                <div class="form-group"><label>密码</label><input type="password" name="password" required></div>
+                <div class="form-group"><button type="submit">登录</button></div>
+                <div class="form-switch">还没有账号？<a href="#" onclick="switchModal('loginModal','registerModal');return false;">立即注册</a></div>
+            </form>
+        </div>
+    </div>
+
+    <div id="registerModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal('registerModal')">×</span>
+            <h2>注册</h2>
+            <form onsubmit="handleRegister(event)">
+                <div class="form-group"><label>用户名</label><input type="text" name="username" required minlength="2" maxlength="30"></div>
+                <div class="form-group"><label>邮箱</label><input type="email" name="email" required></div>
+                <div class="form-group"><label>密码</label><input type="password" name="password" required minlength="6"></div>
+                <div class="form-group"><button type="submit">注册</button></div>
+                <div class="form-switch">已有账号？<a href="#" onclick="switchModal('registerModal','loginModal');return false;">立即登录</a></div>
+            </form>
+        </div>
+    </div>
+
+    <style>
+        .modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center}
+        .modal.show{display:flex}
+        .modal-content{background:var(--bg-card);padding:30px;max-width:400px;width:90%;border-radius:12px;border:1px solid var(--border)}
+        .modal h2{margin-bottom:20px;color:var(--text-primary)}
+        .close-modal{float:right;cursor:pointer;font-size:1.5em;color:var(--text-secondary)}
+        .form-group{margin-bottom:15px}
+        .form-group label{display:block;margin-bottom:8px;color:var(--text-secondary);font-size:0.9rem}
+        .form-group input{width:100%;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--bg-secondary);color:var(--text-primary);font-size:1rem}
+        .form-group input:focus{outline:none;border-color:var(--accent)}
+        .form-group button{width:100%;padding:14px;background:var(--accent);color:white;border:none;border-radius:8px;cursor:pointer;font-size:1rem;font-weight:600}
+        .form-group button:hover{background:var(--accent-hover)}
+        .form-switch{text-align:center;margin-top:15px;color:var(--text-secondary);font-size:0.9rem}
+        .form-switch a{color:var(--accent);text-decoration:none}
+        .nav-user{display:flex;gap:12px;align-items:center}
+        .nav-user a{color:var(--text-secondary);text-decoration:none;font-size:0.9rem;padding:8px 12px;border-radius:8px}
+        .nav-user a:hover{background:var(--bg-hover);color:var(--text-primary)}
+        .mobile-menu{display:none}
+        .mobile-menu.show{display:flex;flex-direction:column}
+        .mobile-menu a{padding:12px 16px;color:var(--text-secondary);text-decoration:none;border-bottom:1px solid var(--border);font-size:0.95rem}
+        .mobile-menu a:hover,.mobile-menu a.active{background:var(--bg-hover);color:var(--text-primary)}
+        .mobile-menu a:last-child{border-bottom:none}
+        @media(max-width:768px){
+            .nav-links{display:none!important}
+            .nav-user{display:none!important}
+            .nav-mobile-btn{display:block!important}
+        }
+        @media(min-width:769px){
+            .nav-mobile-btn{display:none!important}
+            .mobile-menu{display:none!important}
+        }
+
+        /* 返回顶部按钮 */
+        .back-to-top {
+            position: fixed;
+            right: 20px;
+            bottom: 80px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(64, 158, 255, 0.85);
+            color: white;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 12px rgba(64, 158, 255, 0.4);
+            z-index: 999;
+        }
+        .back-to-top.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        .back-to-top:hover {
+            background: rgba(64, 158, 255, 1);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(64, 158, 255, 0.5);
+        }
+        .back-to-top:active {
+            transform: scale(0.95);
+        }
+        @media (max-width: 768px) {
+            .back-to-top {
+                right: 16px;
+                bottom: 70px;
+                width: 40px;
+                height: 40px;
+            }
+        }
+    </style>
+
+    <script>
+    function showLogin(){document.getElementById('loginModal').classList.add('show')}
+    function showRegister(){document.getElementById('registerModal').classList.add('show')}
+    function closeModal(id){document.getElementById(id).classList.remove('show')}
+    function switchModal(f,t){closeModal(f);document.getElementById(t).classList.add('show')}
+    function toggleMobileMenu(){document.getElementById('mobile-menu').classList.toggle('show')}
+    document.addEventListener('click',function(e){var m=document.getElementById('mobile-menu'),b=document.querySelector('.nav-mobile-btn');if(m.classList.contains('show')&&!m.contains(e.target)&&!b.contains(e.target))m.classList.remove('show')});
+    async function handleLogin(e){e.preventDefault();var f=e.target,d={username:f.username.value,password:f.password.value};try{var r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});var j=await r.json();if(j.code===200||j.success)location.reload();else alert(j.message||j.error)}catch(err){alert('登录失败')}}
+    async function handleRegister(e){e.preventDefault();var f=e.target,d={username:f.username.value,email:f.email.value,password:f.password.value};try{var r=await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});var j=await r.json();if(j.code===201||j.success)location.reload();else alert(j.message||j.error)}catch(err){alert('注册失败')}}
+    async function logout(){await fetch('/api/auth/logout',{method:'POST'});location.reload()}
+    async function toggleFavorite(id,btn){try{var r=await fetch('/api/favorites/toggle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({article_id:id})});var j=await r.json();if(j.code===401){showLogin();return}if(j.code===200||j.success){btn.classList.toggle('active');var c=btn.querySelector('.count');if(c)c.textContent=j.data.favorite_count}}catch(err){}}
+    document.addEventListener('click',function(e){if(e.target.classList.contains('modal'))e.target.classList.remove('show')});
+
+    // 返回顶部功能
+    function backToTop() {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    window.addEventListener('scroll', function() {
+        var btn = document.getElementById('backToTop');
+        if (btn) {
+            if (window.pageYOffset > window.innerHeight) {
+                btn.classList.add('show');
+            } else {
+                btn.classList.remove('show');
+            }
+        }
+    });
+    </script>
+
+    <script>
+    (function(){var sid=localStorage.getItem('ds_s')||'s_'+Date.now()+'_'+Math.random().toString(36).substr(2,9);localStorage.setItem('ds_s',sid);fetch('/api/track',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:location.pathname,session_id:sid})}).catch(function(){})})();
+
+    // 返回顶部功能
+    function backToTop() {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    window.addEventListener('scroll', function() {
+        var btn = document.getElementById('backToTop');
+        if (btn) {
+            if (window.pageYOffset > window.innerHeight) {
+                btn.classList.add('show');
+            } else {
+                btn.classList.remove('show');
+            }
+        }
+    });
+    </script>
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>
+

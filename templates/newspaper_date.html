@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}{{ date }} 报纸 - 66必读{% endblock %}
+
+{% block content %}
+<div class="newspaper-date">
+    <!-- 报纸头 -->
+    <div class="newspaper-header">
+        <h1 class="newspaper-title">
+            {% if date == today %}
+            <span class="today-badge">📰 今日报</span>
+            {% else %}
+            📰 {{ date }}
+            {% endif %}
+        </h1>
+        
+        <!-- 日期导航 -->
+        <div class="newspaper-nav">
+            <a href="{{ url_for('newspaper_date', date=prev_date) }}" class="nav-btn prev">← 前一天</a>
+            <a href="{{ url_for('newspaper_list') }}" class="nav-btn list">报纸列表</a>
+            {% if next_date %}
+            <a href="{{ url_for('newspaper_date', date=next_date) }}" class="nav-btn next">后一天 →</a>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- 分类板块 -->
+    {% for cat_data in categories_data %}
+    <div class="newspaper-section">
+        <h2 class="section-title">{{ cat_data.name }}</h2>
+        <div class="section-articles">
+            {% for article in cat_data.articles %}
+            <article class="paper-article">
+                <h3 class="article-title">
+                    <a href="{{ url_for('article_detail', id=article.id) }}">{{ article.title }}</a>
+                </h3>
+                <p class="article-summary">{{ article.summary }}</p>
+                <div class="article-meta">
+                    <span class="source">{{ article.source_config.icon }} {{ article.source }}</span>
+                    <span class="time">{{ article.created_at.strftime('%H:%M') if article.created_at else '' }}</span>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+    
+    {% if not categories_data %}
+    <div class="empty-state">当日暂无内容</div>
+    {% endif %}
+</div>
+{% endblock %}

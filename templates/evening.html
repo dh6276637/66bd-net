@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">66必读晚报</h1>
+    <p class="page-subtitle">Evening Edition · {{ today }}</p>
+</div>
+
+<!-- 文章列表 -->
+{% if articles %}
+<section class="article-list">
+    {% for article in articles %}
+    <article class="article-item">
+        <header class="article-header">
+            <div class="article-category">
+                <span class="kicker amber">晚报</span>
+            </div>
+            <h2 class="article-title">
+                <a href="#">{{ article.title }}</a>
+            </h2>
+            <div class="article-meta">
+                <span class="source">{{ article.source or '原创' }}</span>
+                <span>·</span>
+                <span>{{ article.publish_date.strftime('%Y-%m-%d') if article.publish_date else '' }}</span>
+            </div>
+        </header>
+        <div class="article-excerpt">
+            <p>{{ article.content[:200] + '...' if article.content|length > 200 else article.content }}</p>
+        </div>
+    </article>
+    {% endfor %}
+</section>
+{% else %}
+<p class="text-center">暂无晚报内容</p>
+{% endif %}
+
+<!-- 导航链接 -->
+<div class="mt-lg text-center">
+    <a href="/" class="btn">返回首页</a>
+    <a href="/morning" class="btn">查看早报</a>
+</div>
+{% endblock %}

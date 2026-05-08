@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>站点设置 - 66必读管理后台</title>
+    <link rel="stylesheet" href="/static/css/admin.css">
+</head>
+<body>
+    <div class="admin-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header"><div class="sidebar-logo">📖 66必读</div></div>
+            <nav class="sidebar-nav">
+                <a href="/admin/" class="nav-item"><span class="nav-icon">📊</span><span class="nav-text">数据看板</span></a>
+                <a href="/admin/articles" class="nav-item"><span class="nav-icon">📝</span><span class="nav-text">文章管理</span></a>
+                <a href="/admin/articles/new" class="nav-item"><span class="nav-icon">➕</span><span class="nav-text">发布文章</span></a>
+                <a href="/admin/categories" class="nav-item"><span class="nav-icon">📂</span><span class="nav-text">分类管理</span></a>
+                <a href="/admin/cron-log" class="nav-item"><span class="nav-icon">📜</span><span class="nav-text">采集日志</span></a>
+                <a href="/admin/settings" class="nav-item active"><span class="nav-icon">⚙️</span><span class="nav-text">站点设置</span></a>
+                <a href="/admin/monitor" class="nav-item"><span class="nav-icon">📈</span><span class="nav-text">服务器监控</span></a>
+                <a href="/admin/users" class="nav-item"><span class="nav-icon">👥</span><span class="nav-text">用户管理</span></a>
+                <a href="/" class="nav-item"><span class="nav-icon">👀</span><span class="nav-text">查看网站</span></a>
+            </nav>
+        </aside>
+        <main class="main-content">
+            <div class="page-header">
+                <h1 class="page-title">站点设置</h1>
+            </div>
+            
+            {% with messages = get_flashed_messages() %}
+            {% if messages %}
+            {% for msg in messages %}
+            <div class="flash flash-success">{{ msg }}</div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+            
+            <div class="stats-grid" style="margin-bottom:20px;">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:rgba(64,158,255,0.1);color:var(--primary);">📰</div>
+                    <div class="stat-value">{{ stats.total }}</div>
+                    <div class="stat-label">文章总数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:rgba(103,194,58,0.1);color:var(--success);">👁️</div>
+                    <div class="stat-value">{{ stats.views or 0 }}</div>
+                    <div class="stat-label">总阅读量</div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">⚙️ 基本信息</span>
+                </div>
+                <form method="post">
+                    <div class="form-group">
+                        <label class="form-label">站点名称</label>
+                        <input type="text" name="site_name" class="form-control" value="{{ settings.get('site_name', '66必读') }}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">站点描述</label>
+                        <textarea name="site_description" class="form-control" rows="3">{{ settings.get('site_description', '') }}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">关键词</label>
+                        <input type="text" name="keywords" class="form-control" value="{{ settings.get('keywords', '') }}" placeholder="用逗号分隔">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">联系邮箱</label>
+                        <input type="email" name="contact_email" class="form-control" value="{{ settings.get('contact_email', 'dongshushu@coze.email') }}">
+                    </div>
+                    <div style="border-top:1px solid var(--border-light);padding-top:20px;margin-top:10px;">
+                        <h3 style="font-size:14px;color:var(--text-secondary);margin-bottom:15px;">📝 关于页面内容</h3>
+                        <textarea name="about_content" class="form-control" rows="10" style="font-size:13px;">{{ settings.get('about_content', '') }}</textarea>
+                        <p style="font-size:12px;color:var(--text-secondary);margin-top:8px;">支持HTML格式，用于"关于"页面展示</p>
+                    </div>
+                    <div style="margin-top:20px;">
+                        <button type="submit" class="btn btn-primary">💾 保存设置</button>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">🔗 快捷链接</span>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:10px;">
+                    <a href="/admin/articles" class="btn btn-outline btn-sm">📝 文章管理</a>
+                    <a href="/admin/articles/new" class="btn btn-outline btn-sm">➕ 发布文章</a>
+                    <a href="/rss.xml" target="_blank" class="btn btn-outline btn-sm">📡 RSS源</a>
+                    <a href="/sitemap.xml" target="_blank" class="btn btn-outline btn-sm">🗺️ Sitemap</a>
+                    <a href="/about" target="_blank" class="btn btn-outline btn-sm">ℹ️ 关于页面</a>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

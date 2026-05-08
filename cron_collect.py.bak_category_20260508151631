@@ -1,0 +1,730 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+董蜀黍的报纸 - 新闻自动采集脚本 (增强版 v3 - 支持自动翻译)
+定时从RSS源采集新闻，推送到本地Flask API
+"""
+
+import requests
+import feedparser
+import json
+import time
+import logging
+from datetime import datetime
+from bs4 import BeautifulSoup
+from collections import defaultdict
+import hashlib
+import random
+import urllib.request
+import urllib.parse
+
+# ============ 翻译功能 ============
+
+def is_english_text(text):
+    """判断文本是否以英文为主（英文字母占比>50%）"""
+    if not text:
+        return False
+    letters = sum(1 for c in text if c.isalpha())
+    if letters == 0:
+        return False
+    english_letters = sum(1 for c in text if c.isascii() and c.isalpha())
+    return english_letters / letters > 0.5
+
+def translate_to_chinese(text, max_retries=3):
+    """使用Google Translate API将英文翻译成中文"""
+    if not text or len(text.strip()) == 0:
+        return text
+    
+    # 非英文内容不需要翻译
+    if not is_english_text(text):
+        return text
+    
+    try:
+        url = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt=t&q={urllib.parse.quote(text[:5000])}"
+        req = urllib.request.Request(url)
+        req.add_header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')
+        
+        with urllib.request.urlopen(req, timeout=15) as response:
+            result = json.loads(response.read().decode('utf-8'))
+            
+        # 解析翻译结果
+        if result and len(result) > 0 and result[0]:
+            translated_parts = []
+            for item in result[0]:
+                if item[0]:
+                    translated_parts.append(item[0])
+            return ''.join(translated_parts)
+    except Exception as e:
+        logging.warning(f"翻译失败: {str(e)[:100]}")
+    
+    return text
+
+def translate_long_text(text, chunk_size=1800):
+    """翻译长文本，分段处理"""
+    if not text or len(text) <= chunk_size:
+        return translate_to_chinese(text)
+    
+    # 按段落分割
+    paragraphs = text.split('\n\n')
+    translated = []
+    current_chunk = []
+    current_length = 0
+    
+    for para in paragraphs:
+        if current_length + len(para) > chunk_size and current_chunk:
+            # 翻译当前chunk
+            chunk_text = '\n\n'.join(current_chunk)
+            translated.append(translate_to_chinese(chunk_text))
+            time.sleep(1.2)  # 避免API限流
+            current_chunk = []
+            current_length = 0
+        
+        current_chunk.append(para)
+        current_length += len(para)
+    
+    # 处理最后一个chunk
+    if current_chunk:
+        chunk_text = '\n\n'.join(current_chunk)
+        translated.append(translate_to_chinese(chunk_text))
+    
+    return '\n\n'.join(translated)
+
+# ============ 采集脚本 ============
+
+# 配置
+API_URL = "http://127.0.0.1:5000/api/articles"
+LOG_FILE = "/var/www/dongshushu-paper/cron_collect.log"
+
+# RSS源配置 - 按栏目分类 (已验证可用)
+RSS_SOURCES = {
+    # ============ 时政热点 ============
+    "央视新闻": {
+        "url": "https://plink.anyfeeder.com/weixin/cctvnewscenter",
+        "category": "时政热点",
+        "min_content_length": 50
+    },
+    "中国日报": {
+        "url": "https://plink.anyfeeder.com/chinadaily/china",
+        "category": "时政热点",
+        "min_content_length": 50
+    },
+    "BBC中文": {
+        "url": "https://plink.anyfeeder.com/bbc/cn",
+        "category": "时政热点",
+        "min_content_length": 50
+    },
+    "参考消息": {
+        "url": "https://plink.anyfeeder.com/weixin/ckxxwx",
+        "category": "时政热点",
+        "min_content_length": 50
+    },
+    "解放军报": {
+        "url": "https://plink.anyfeeder.com/jiefangjunbao",
+        "category": "时政热点",
+        "min_content_length": 50
+    },
+    
+    # ============ 科技头条 ============
+    "36kr": {
+        "url": "https://36kr.com/feed",
+        "category": "科技头条",
+        "min_content_length": 50
+    },
+    "钛媒体": {
+        "url": "https://www.tmtpost.com/rss",
+        "category": "科技头条",
+        "min_content_length": 50
+    },
+    "少数派": {
+        "url": "https://sspai.com/feed",
+        "category": "科技头条",
+        "min_content_length": 50
+    },
+    "IT之家": {
+        "url": "https://www.ithome.com/rss/",
+        "category": "科技头条",
+        "min_content_length": 50
+    },
+    "爱范儿": {
+        "url": "https://www.ifanr.com/feed",
+        "category": "科技头条",
+        "min_content_length": 50
+    },
+    "TechCrunch": {
+        "url": "https://techcrunch.com/feed/",
+        "category": "科技头条",
+        "min_content_length": 50
+    },
+    "The Verge": {
+        "url": "https://www.theverge.com/rss/index.xml",
+        "category": "科技头条",
+        "min_content_length": 50
+    },
+    "Wired": {
+        "url": "https://www.wired.com/feed/rss",
+        "category": "科技头条",
+        "min_content_length": 50
+    },
+    "MIT科技评论": {
+        "url": "https://www.technologyreview.com/feed/",
+        "category": "科技头条",
+        "min_content_length": 50
+    },
+    "Ars Technica": {
+        "url": "https://feeds.arstechnica.com/arstechnica/index",
+        "category": "科技头条",
+        "min_content_length": 50
+    },
+    
+    # ============ 智能AI ============
+    "量子位": {
+        "url": "https://www.qbitai.com/feed",
+        "category": "智能AI",
+        "min_content_length": 50
+    },
+    "MIT AI": {
+        "url": "https://www.technologyreview.com/feed/",
+        "category": "智能AI",
+        "min_content_length": 50
+    },
+    "OpenAI博客": {
+        "url": "https://openai.com/news/rss.xml",
+        "category": "智能AI",
+        "min_content_length": 50
+    },
+    "arXiv AI": {
+        "url": "https://rss.arxiv.org/rss/cs.AI",
+        "category": "智能AI",
+        "min_content_length": 50
+    },
+    "arXiv机器学习": {
+        "url": "https://rss.arxiv.org/rss/cs.LG",
+        "category": "智能AI",
+        "min_content_length": 50
+    },
+    "新智元": {
+        "url": "https://plink.anyfeeder.com/weixin/AI_era",
+        "category": "智能AI",
+        "min_content_length": 50
+    },
+    "微软研究院AI": {
+        "url": "https://plink.anyfeeder.com/weixin/MSRAsia",
+        "category": "智能AI",
+        "min_content_length": 50
+    },
+    "MIT科技评论-AI": {
+        "url": "https://plink.anyfeeder.com/mittrchina/hot",
+        "category": "智能AI",
+        "min_content_length": 50
+    },
+    
+    # ============ 数码硬件 ============
+    "快科技": {
+        "url": "https://rss.mydrivers.com/Rss.aspx?Tid=1",
+        "category": "数码硬件",
+        "min_content_length": 50
+    },
+    "中关村在线": {
+        "url": "http://rss.zol.com.cn/",
+        "category": "数码硬件",
+        "min_content_length": 50
+    },
+    "Phoronix": {
+        "url": "https://www.phoronix.com/rss.php",
+        "category": "数码硬件",
+        "min_content_length": 50
+    },
+    "超能网": {
+        "url": "https://plink.anyfeeder.com/chuansongme",
+        "category": "数码硬件",
+        "min_content_length": 50
+    },
+    
+    # ============ CTF安全工具 ============
+    "FreeBuf": {
+        "url": "https://www.freebuf.com/feed",
+        "category": "CTF安全工具",
+        "min_content_length": 50
+    },
+    "先知社区": {
+        "url": "https://xz.aliyun.com/feed",
+        "category": "CTF安全工具",
+        "min_content_length": 50
+    },
+    "嘶吼": {
+        "url": "https://www.4hou.com/rss",
+        "category": "CTF安全工具",
+        "min_content_length": 50
+    },
+    "跳跳糖": {
+        "url": "https://tttang.com/rss.xml",
+        "category": "CTF安全工具",
+        "min_content_length": 50
+    },
+    "安全脉搏": {
+        "url": "https://www.secpulse.com/feed",
+        "category": "CTF安全工具",
+        "min_content_length": 50
+    },
+    "Seebug Paper": {
+        "url": "https://paper.seebug.org/rss/",
+        "category": "CTF安全工具",
+        "min_content_length": 50
+    },
+    "安全客": {
+        "url": "https://api.anquanke.com/data/v1/rss",
+        "category": "CTF安全工具",
+        "min_content_length": 50
+    },
+    "The Hacker News": {
+        "url": "https://feeds.feedburner.com/TheHackersNews",
+        "category": "CTF安全工具",
+        "min_content_length": 50
+    },
+    
+    # ============ 开源推荐/开发者生态 ============
+    "阮一峰博客": {
+        "url": "https://www.ruanyifeng.com/blog/atom.xml",
+        "category": "开发者生态",
+        "min_content_length": 50
+    },
+    "Hacker News": {
+        "url": "https://hnrss.org/frontpage",
+        "category": "开发者生态",
+        "min_content_length": 50
+    },
+    "InfoQ推荐": {
+        "url": "https://plink.anyfeeder.com/infoq/recommend",
+        "category": "开发者生态",
+        "min_content_length": 50
+    },
+    "CSDN资讯": {
+        "url": "https://plink.anyfeeder.com/weixin/CSDNnews",
+        "category": "开发者生态",
+        "min_content_length": 50
+    },
+    "极客公园": {
+        "url": "https://www.geekpark.net/rss",
+        "category": "开发者生态",
+        "min_content_length": 50
+    },
+    "Readhub": {
+        "url": "https://plink.anyfeeder.com/readhub/technews",
+        "category": "开发者生态",
+        "min_content_length": 50
+    },
+    "开发者头条": {
+        "url": "https://rsshub.app/toutiao/search?keyword=%E5%BC%80%E5%8F%91",
+        "category": "开发者生态",
+        "min_content_length": 50
+    },
+    "码农周刊": {
+        "url": "https://plink.anyfeeder.com/weixin/manongchina",
+        "category": "开发者生态",
+        "min_content_length": 50
+    },
+    "前端之巅": {
+        "url": "https://plink.anyfeeder.com/weixin/frontshow",
+        "category": "开发者生态",
+        "min_content_length": 50
+    },
+    
+    # ============ 技术小贴士 ============
+    "程序员之家": {
+        "url": "https://plink.anyfeeder.com/weixin/coderhome",
+        "category": "技术小贴士",
+        "min_content_length": 50
+    },
+    "SegmentFault": {
+        "url": "https://segmentfault.com/rss/blog",
+        "category": "技术小贴士",
+        "min_content_length": 50
+    },
+}
+
+# 禁用关键词（匹配到直接跳过）
+FORBIDDEN_KEYWORDS = [
+    "黄金", "金价", "金子", "金饰", "足金", "K金",
+    "娱乐", "明星", "八卦", "绯闻", "综艺", "追星",
+    "股市", "股票", "涨停", "跌停", "大盘", "K线",
+    "彩票", "博彩", "赌博",
+]
+
+# 分类关键词映射
+CATEGORY_KEYWORDS = {
+    "时政热点": ["政治", "政府", "政策", "外交", "国际", "社会", "民生", "两会", "建党", "反腐", "军队", "国防", "中美", "中欧", "俄罗斯", "联合国"],
+    "科技头条": ["科技", "互联网", "AI", "人工智能", "ChatGPT", "大模型", "苹果", "谷歌", "微软", "腾讯", "阿里", "字节", "Meta", "特斯拉", "SpaceX"],
+    "CTF安全工具": ["安全", "漏洞", "黑客", "CTF", "渗透", "攻击", "防护", "加密", "勒索", "恶意软件", "威胁", "数据泄露", "APT", "0day"],
+    "智能AI": ["人工智能", "AI", "机器学习", "深度学习", "神经网络", "大模型", "LLM", "GPT", "Claude", "Gemini", "Copilot", "Stable Diffusion", "ChatGPT", "OpenAI"],
+    "开源推荐": ["开源", "GitHub", "GitLab", "仓库", "项目", "代码", "框架", "library", "framework", "repo", "npm", "PyPI"],
+    "开发者生态": ["编程", "开发", "代码", "程序员", "Python", "JavaScript", "前端", "后端", "API", "开发者", "架构", "Java", "Go", "Rust", "云原生"],
+    "数码硬件": ["手机", "电脑", "笔记本", "CPU", "GPU", "内存", "硬盘", "评测", "数码", "硬件", "显卡", "芯片", "英特尔", "AMD", "NVIDIA", "苹果", "三星"],
+    "技术小贴士": ["教程", "技巧", "指南", "方法", "步骤", "解决方案", "优化", "配置", "设置", "入门", "详解", "最佳实践"],
+}
+
+# 全局日志配置
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(LOG_FILE, encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
+
+def is_forbidden_content(title, content=""):
+    """检查内容是否包含禁用关键词"""
+    text = (title + " " + content).lower()
+    for keyword in FORBIDDEN_KEYWORDS:
+        if keyword.lower() in text:
+            return True
+    return False
+
+
+def classify_category(title, content=""):
+    """根据标题和内容自动分类"""
+    text = (title + " " + content).lower()
+    
+    scores = defaultdict(int)
+    for category, keywords in CATEGORY_KEYWORDS.items():
+        for keyword in keywords:
+            if keyword.lower() in text:
+                scores[category] += 1
+    
+    if scores:
+        return max(scores, key=scores.get)
+    return "科技"  # 默认分类
+
+
+def clean_html(html_content):
+    """清理HTML标签，提取纯文本"""
+    if not html_content:
+        return ""
+    
+    soup = BeautifulSoup(html_content, 'lxml')
+    text = soup.get_text(separator=' ', strip=True)
+    
+    # 清理多余空白
+    text = ' '.join(text.split())
+    return text
+
+
+def generate_content_from_title(title):
+    """从标题生成摘要内容（确保≥50字）"""
+    templates = [
+        f"本文报道了关于{title}的最新动态。该事件在业界引起了广泛关注，各方专家对此进行了深入分析和讨论。",
+        f"{title}是近期热门话题。本文将从多个角度为您详细解读这一事件，帮助您全面了解相关情况。",
+        f"关于{title}的报道引起了业界关注。本文梳理了事件始末，为您呈现最全面的资讯和分析。",
+        f"{title}相关话题持续发酵。本文汇集了多方观点，为您深入剖析这一现象背后的原因和影响。",
+    ]
+    return random.choice(templates)
+
+
+def translate_article(title, content):
+    """翻译文章标题和正文"""
+    # 翻译标题
+    title_cn = translate_to_chinese(title) if is_english_text(title) else title
+    
+    # 翻译正文
+    content_cn = translate_long_text(content) if is_english_text(content) else content
+    
+    return title_cn, content_cn
+
+
+def fetch_rss_source(source_name, config):
+    """从单个RSS源抓取文章"""
+    articles = []
+    
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+        response = requests.get(config['url'], headers=headers, timeout=15)
+        response.raise_for_status()
+        
+        feed = feedparser.parse(response.content)
+        logger.info(f"从 {source_name} 获取到 {len(feed.entries)} 条条目")
+        
+        for entry in feed.entries[:8]:  # 每个源最多8条
+            try:
+                title = entry.get('title', '').strip()
+                if not title or len(title) < 5:
+                    continue
+                
+                # 清理标题中的HTML
+                title = clean_html(title)
+                
+                # 获取内容
+                content = ""
+                if 'summary' in entry:
+                    content = clean_html(entry.get('summary', ''))
+                elif 'description' in entry:
+                    content = clean_html(entry.get('description', ''))
+                
+                # 获取原文链接
+                original_url = entry.get('link', '')
+                
+                # 如果内容太短，跳过该条目（特别是HackerNews等只有标题的源）
+                if len(content) < config['min_content_length']:
+                    # 对于HackerNews等已知无内容源，尝试从link抓取
+                    if 'hnrss.org' in config['url'] or 'Hacker News' in source_name:
+                        logger.info(f"HackerNews条目无正文，跳过: {title[:30]}...")
+                        continue
+                    # 其他源如果内容太短也跳过
+                    logger.info(f"内容太短跳过: {title[:30]}... (长度:{len(content)})")
+                    continue
+                
+                # 检查禁用词
+                if is_forbidden_content(title, content):
+                    logger.debug(f"跳过（禁用词）: {title[:30]}...")
+                    continue
+                
+                # 分类 - 优先使用配置中的分类
+                category = config.get('category', '科技')
+                if category == '科技':
+                    category = classify_category(title, content)
+                
+                # 来源
+                source = source_name
+                if 'author' in entry and entry['author']:
+                    source = entry['author']
+                
+                # 生成唯一ID（防止重复）
+                article_id = hashlib.md5(title.encode()).hexdigest()[:16]
+                
+                # 获取原文链接
+                original_url = entry.get('link', '')
+                
+                # 自动翻译（英文内容）
+                title_cn, content_cn = translate_article(title, content)
+                
+                # 间隔1秒避免API限流
+                time.sleep(1)
+                
+                articles.append({
+                    'title': title[:200],
+                    'title_cn': title_cn[:200] if title_cn else title[:200],
+                    'content': content[:2000],
+                    'content_cn': content_cn[:3000] if content_cn else content[:2000],
+                    'category': category,
+                    'source': source,
+                    'url': original_url,
+                    'paper_type': None,
+                    'date': datetime.now().strftime('%Y-%m-%d'),
+                    'is_published': True,
+                    '_id': article_id
+                })
+                
+            except Exception as e:
+                logger.warning(f"处理条目失败: {e}")
+                continue
+        
+    except Exception as e:
+        logger.error(f"抓取 {source_name} 失败: {e}")
+    
+    return articles
+
+
+def fetch_github_trending():
+    """抓取GitHub Trending"""
+    articles = []
+    
+    try:
+        url = "https://api.github.com/search/repositories?q=created:>2024-01-01&sort=stars&order=desc&per_page=8"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'application/vnd.github.v3+json'
+        }
+        response = requests.get(url, headers=headers, timeout=15)
+        
+        if response.status_code == 200:
+            data = response.json()
+            for repo in data.get('items', [])[:8]:
+                title = f"GitHub热门项目: {repo['name']}"
+                repo_url = repo.get('html_url', '')  # GitHub仓库URL
+                stars = repo.get('stargazers_count', 0)
+                description = repo.get('description') or '暂无描述'
+                owner = repo.get('owner', {}).get('login', 'unknown')
+                
+                # 生成基础内容（包含URL和项目信息）
+                content = f"""项目 {repo['name']} 是近期热门的开源项目。
+
+📊 项目信息：
+- 仓库地址：{repo_url}
+- Stars：{stars}
+- 作者：{owner}
+- 项目描述：{description}
+
+正在尝试获取详细README内容..."""
+                
+                # 尝试抓取README
+                readme_content = ""
+                try:
+                    readme_url = f"https://raw.githubusercontent.com/{owner}/{repo['name']}/main/README.md"
+                    headers['User-Agent'] = 'Mozilla/5.0'
+                    readme_resp = requests.get(readme_url, headers=headers, timeout=10)
+                    if readme_resp.status_code == 200:
+                        readme_content = readme_resp.text[:3000]  # 限制长度
+                        content = f"""📦 GitHub项目：{repo['name']}
+🔗 仓库地址：{repo_url}
+⭐ Stars：{stars} | 👤 作者：{owner}
+
+📝 项目描述：{description}
+
+{'='*50}
+📖 README 内容：
+{'='*50}
+{readme_content}"""
+                except Exception as e:
+                    logger.debug(f"获取README失败: {repo['name']}, {e}")
+                
+                if not is_forbidden_content(title, content):
+                    # GitHub项目一般是英文，翻译标题和README
+                    title_cn = translate_to_chinese(title)
+                    content_cn = translate_long_text(content)
+                    
+                    time.sleep(1.5)  # API限流
+                    
+                    articles.append({
+                        'title': title[:200],
+                        'title_cn': title_cn[:200] if title_cn else title[:200],
+                        'content': content[:3000],
+                        'content_cn': content_cn[:3000] if content_cn else content[:3000],
+                        'category': '开源推荐',
+                        'source': 'GitHub Trending',
+                        'url': repo_url,  # 保存GitHub仓库URL
+                        'paper_type': None,
+                        'date': datetime.now().strftime('%Y-%m-%d'),
+                        'is_published': True,
+                        '_id': hashlib.md5(title.encode()).hexdigest()[:16]
+                    })
+        
+        # 速率限制提示
+        if 'X-RateLimit-Remaining' in response.headers:
+            remaining = response.headers.get('X-RateLimit-Remaining')
+            logger.info(f"GitHub API剩余请求: {remaining}")
+            
+    except Exception as e:
+        logger.error(f"抓取GitHub Trending失败: {e}")
+    
+    return articles
+
+
+def push_to_api(articles, paper_type="morning"):
+    """推送文章到本地API"""
+    if not articles:
+        logger.warning("没有文章需要推送")
+        return 0
+    
+    success_count = 0
+    
+    for article in articles:
+        article['paper_type'] = paper_type
+        
+        try:
+            response = requests.post(
+                API_URL,
+                json=article,
+                headers={'Content-Type': 'application/json'},
+                timeout=10
+            )
+            
+            if response.status_code in [200, 201]:
+                success_count += 1
+                logger.info(f"推送成功: {article['title'][:40]}...")
+            else:
+                logger.warning(f"推送失败 [{response.status_code}]: {article['title'][:40]}...")
+                
+        except requests.exceptions.ConnectionError:
+            logger.error("无法连接到API服务，请确认Flask服务正在运行在 http://127.0.0.1:5000")
+        except Exception as e:
+            logger.error(f"推送异常: {e}")
+        
+        time.sleep(0.5)
+    
+    return success_count
+
+
+def collect_all(paper_type="morning"):
+    """采集所有来源的文章"""
+    logger.info(f"=== 开始采集 [{paper_type}] ===")
+    
+    all_articles = []
+    seen_ids = set()
+    
+    # 1. 采集所有RSS源
+    logger.info(f"RSS源总数: {len(RSS_SOURCES)}")
+    success_count = 0
+    fail_count = 0
+    
+    for source_name, config in RSS_SOURCES.items():
+        articles = fetch_rss_source(source_name, config)
+        if articles:
+            success_count += 1
+        else:
+            fail_count += 1
+            
+        for article in articles:
+            if article['_id'] not in seen_ids:
+                seen_ids.add(article['_id'])
+                all_articles.append(article)
+        time.sleep(0.5)  # 避免请求过快
+    
+    logger.info(f"成功采集源: {success_count}, 失败: {fail_count}")
+    
+    # 2. GitHub Trending
+    logger.info("正在采集 GitHub Trending...")
+    github_articles = fetch_github_trending()
+    for article in github_articles:
+        if article['_id'] not in seen_ids:
+            seen_ids.add(article['_id'])
+            all_articles.append(article)
+    
+    logger.info(f"共采集到 {len(all_articles)} 篇去重文章")
+    
+    # 按栏目统计
+    category_stats = defaultdict(int)
+    for article in all_articles:
+        category_stats[article['category']] += 1
+    
+    logger.info("各栏目文章数:")
+    for cat, count in sorted(category_stats.items(), key=lambda x: -x[1]):
+        logger.info(f"  - {cat}: {count}篇")
+    
+    # 推送到API
+    push_count = push_to_api(all_articles, paper_type)
+    
+    logger.info(f"=== 采集完成，成功推送 {push_count} 篇 ===")
+    return push_count
+
+
+def main():
+    """主函数"""
+    import sys
+    
+    # 判断早报/晚报
+    paper_type = "morning"
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "evening":
+            paper_type = "evening"
+        elif sys.argv[1] == "morning":
+            paper_type = "morning"
+        else:
+            hour = datetime.now().hour
+            paper_type = "evening" if hour >= 12 else "morning"
+    
+    logger.info(f"新闻采集脚本启动 - 类型: {paper_type}")
+    
+    try:
+        success = collect_all(paper_type)
+        sys.exit(0 if success > 0 else 1)
+    except Exception as e:
+        logger.error(f"采集过程异常: {e}")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
+

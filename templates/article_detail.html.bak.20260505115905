@@ -1,0 +1,38 @@
+
+<style>
+.gh-stat { display: inline-block; margin-right: 15px; font-family: var(--wired-font-mono); font-size: 0.85em; }
+.gh-stat-label { color: var(--wired-gray); }
+.gh-stat-value { font-weight: bold; margin-left: 5px; }
+.gh-tags { font-family: var(--wired-font-mono); font-size: 0.8em; color: var(--wired-gray); margin: 8px 0; }
+.gh-tags span { background: var(--wired-light); padding: 2px 8px; margin-right: 5px; border: 1px solid #ddd; }
+.gh-license { font-family: var(--wired-font-mono); font-size: 0.8em; color: var(--wired-gray); margin: 5px 0; }
+.gh-link { font-family: var(--wired-font-mono); font-size: 0.85em; word-break: break-all; margin: 8px 0; }
+.gh-link a { color: #057dbc; }
+.translation-section { margin-top: 30px; padding-top: 20px; border-top: 2px dashed #ccc; }
+.translation-divider { text-align: center; margin-bottom: 15px; position: relative; }
+.translation-divider::before { content: ''; position: absolute; top: 50%; left: 0; right: 0; border-top: 2px dashed #ccc; }
+.translation-divider span { font-family: var(--wired-font-mono); font-size: 0.7em; text-transform: uppercase; letter-spacing: 2px; color: var(--wired-gray); background: #fff; padding: 0 10px; position: relative; }
+</style>
+{% extends "base.html" %}
+
+{% block title %}{{ article.title }} - 66必读{% endblock %}
+{% block meta_desc %}{{ article.content[:150] if article.content else "66必读" }}{% endblock %}
+{% block content %}
+<article class="article-detail" style="max-width:800px;margin:0 auto;padding:20px 0;">
+    <div class="page-header">
+        <span class="category-tag">{{ article.category }}</span>
+        <h1>{{ article.title }}</h1>
+        <div class="article-meta"><span>{{ article.source }}</span> | <span>{{ article.publish_date or article.created_at }}</span> | <span>{{ article.view_count }} 阅读</span></div>
+    </div>
+    <div class="article-body" style="font-size:1.1em;line-height:1.8;margin:30px 0;">{{ article.content|safe if article.content else article.content_cn|safe }}</div>
+    <div class="share-bar" style="border-top:1px solid #000;border-bottom:1px solid #000;padding:20px 0;margin:30px 0;">
+        <div style="font-family:var(--wired-font-mono);font-size:0.7em;text-transform:uppercase;letter-spacing:2px;color:#666;margin-bottom:15px;">Share</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button onclick="alert('请使用微信扫一扫')" style="font-family:var(--wired-font-mono);font-size:0.75em;text-transform:uppercase;padding:10px 20px;border:2px solid #000;background:#fff;cursor:pointer;">微信</button>
+            <button onclick="window.open('http://service.weibo.com/share/share.php?title='+encodeURIComponent(document.querySelector('h1').textContent+' - 66必读')+'&url='+encodeURIComponent(location.href),'_blank')" style="font-family:var(--wired-font-mono);font-size:0.75em;text-transform:uppercase;padding:10px 20px;border:2px solid #000;background:#fff;cursor:pointer;">微博</button>
+            <button onclick="navigator.clipboard.writeText(location.href).then(function(){alert('已复制')})" style="font-family:var(--wired-font-mono);font-size:0.75em;text-transform:uppercase;padding:10px 20px;border:2px solid #000;background:#fff;cursor:pointer;">复制链接</button>
+        </div>
+    </div>
+    <div style="display:flex;gap:15px;"><a href="/category/{{ article.slug }}" class="btn">返回分类</a><a href="/" class="btn">返回首页</a></div>
+</article>
+{% endblock %}

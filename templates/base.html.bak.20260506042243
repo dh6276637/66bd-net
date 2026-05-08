@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="index, follow">
+    <meta name="applicable-device" content="pc,mobile">
+    <meta name="theme-color" content="#1a1a2e">
+    <title>{% block title %}{% if seo and seo.title %}{{ seo.title }}{% else %}66必读{% endif %}{% endblock %}</title>
+    <meta name="description" content="{% block meta_desc %}{% if seo and seo.description %}{{ seo.description }}{% else %}每日精选科技资讯{% endif %}{% endblock %}">
+    <meta property="og:title" content="{% block og_title %}{% if seo and seo.og_title %}{{ seo.og_title }}{% else %}66必读{% endif %}{% endblock %}">
+    <meta property="og:description" content="{% block og_desc %}{% if seo and seo.og_description %}{{ seo.og_description }}{% else %}每日精选科技资讯{% endif %}{% endblock %}">
+    <meta property="og:image" content="{% if seo and seo.og_image %}{{ seo.og_image }}{% else %}{{ request.url_root }}static/og-default.png{% endif %}">
+    <link rel="alternate" type="application/rss+xml" title="RSS" href="{{ request.url_root }}rss.xml">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root { --wired-black: #000; --wired-white: #fff; --wired-gray: #666; --wired-light: #f5f5f5; --wired-font-serif: 'Playfair Display', Georgia, serif; --wired-font-mono: 'Source Code Pro', monospace; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: var(--wired-font-serif); background: var(--wired-white); color: var(--wired-black); line-height: 1.6; max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+        a { color: inherit; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        header { border-bottom: 1px solid var(--wired-black); padding: 20px 0; margin-bottom: 30px; }
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .logo { font-size: 2.5em; font-weight: 700; letter-spacing: -1px; }
+        .logo a { text-decoration: none; }
+        nav ul { list-style: none; display: flex; gap: 20px; flex-wrap: wrap; }
+        nav ul li a { font-family: var(--wired-font-mono); font-size: 0.8em; text-transform: uppercase; }
+        nav ul li a:hover { text-decoration: none; border-bottom: 2px solid var(--wired-black); }
+        .nav-categories { width: 100%; padding-top: 10px; border-top: 1px solid var(--wired-light); margin-top: 5px; }
+        .nav-categories ul { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+        .nav-categories ul li a { color: var(--wired-gray); font-size: 0.7em; }
+        main { min-height: 60vh; }
+        footer { border-top: 1px solid var(--wired-black); padding: 30px 0; margin-top: 50px; }
+        .footer-links { font-family: var(--wired-font-mono); font-size: 0.75em; }
+        .footer-links a { margin-right: 15px; }
+        .subscribe-section { text-align: center; padding: 40px 20px; border: 2px solid var(--wired-black); margin: 30px 0; }
+        .subscribe-kicker { font-family: var(--wired-font-mono); font-size: 0.7em; text-transform: uppercase; letter-spacing: 2px; color: var(--wired-gray); margin-bottom: 10px; }
+        .subscribe-title { font-size: 1.8em; font-weight: 700; margin-bottom: 20px; }
+        .subscribe-buttons { display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; }
+        .subscribe-btn { font-family: var(--wired-font-mono); font-size: 0.8em; padding: 10px 20px; border: 2px solid var(--wired-black); background: var(--wired-white); cursor: pointer; text-transform: uppercase; transition: all 0.2s; }
+        .subscribe-btn:hover { background: var(--wired-black); color: var(--wired-white); }
+        .article-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 30px; margin-top: 20px; }
+        .article-card { border-top: 1px solid var(--wired-black); padding-top: 15px; }
+        .article-card h3 { font-size: 1.2em; margin-bottom: 10px; line-height: 1.3; }
+        .article-meta { font-family: var(--wired-font-mono); font-size: 0.7em; color: var(--wired-gray); margin-bottom: 10px; }
+        .category-tag { font-family: var(--wired-font-mono); font-size: 0.65em; text-transform: uppercase; padding: 3px 8px; background: var(--wired-black); color: var(--wired-white); }
+        .btn { font-family: var(--wired-font-mono); font-size: 0.8em; padding: 8px 16px; border: 2px solid var(--wired-black); background: var(--wired-white); cursor: pointer; text-transform: uppercase; transition: all 0.2s; }
+        .btn:hover { background: var(--wired-black); color: var(--wired-white); }
+        .page-header { border-bottom: 1px solid var(--wired-black); padding-bottom: 15px; margin-bottom: 30px; }
+        .page-header h1 { font-size: 2em; font-weight: 700; }
+        @media (max-width: 768px) { .header-top { flex-direction: column; align-items: flex-start; } .logo { font-size: 1.8em; } .article-grid { grid-template-columns: 1fr; } }
+    </style>
+    {% block extra_head %}{% endblock %}
+
+    <!-- SEO Meta Tags -->
+    <meta name="robots" content="index, follow">
+    <meta name="applicable-device" content="pc,mobile">
+    <meta name="theme-color" content="#1a1a2e">
+    
+    <!-- Preconnect for Performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="dns-prefetch" href="https://www.66bd.net">
+    
+    <!-- Open Graph & Twitter Card -->
+    <meta property="og:site_name" content="66必读">
+    <meta property="og:locale" content="zh_CN">
+    <link rel="canonical" href="{% block canonical_url %}{% if seo and seo.canonical_url %}{{ seo.canonical_url }}{% else %}{% if seo and seo.canonical_url %}{{ seo.canonical_url }}{% else %}https://www.66bd.net{{ request.path }}{% endif %}{% endif %}{% endblock %}">
+    <meta name="twitter:title" content="{% block twitter_title %}{% if seo and seo.twitter_title %}{{ seo.twitter_title }}{% else %}66必读{% endif %}{% endblock %}">
+    <meta name="twitter:description" content="{% block twitter_desc %}{% if seo and seo.twitter_description %}{{ seo.twitter_description }}{% else %}每日精选科技资讯{% endif %}{% endblock %}">
+    <meta name="twitter:image" content="{% block twitter_image %}{% if seo and seo.twitter_image %}{{ seo.twitter_image }}{% else %}{{ request.url_root }}static/og-default.png{% endif %}{% endblock %}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@66bixu">
+    
+    <!-- Canonical URL -->
+    
+    
+    <!-- SEO Block -->
+    {% block seo_head %}{% endblock %}
+
+    <!-- JSON-LD Structured Data -->
+    {% block json_ld %}{% if seo and seo.json_ld %}{{ seo.json_ld|safe }}{% endif %}{% endblock %}
+
+    <!-- Performance Optimization -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="dns-prefetch" href="https://www.66bd.net">
+</head>
+<body>
+    <header>
+        <div class="header-top"><div class="logo"><a href="/">66必读</a></div></div>
+        <nav>
+            <ul><li><a href="/">首页</a></li><li><a href="/paper">报纸</a></li><li><a href="/about">关于</a></li></ul>
+            <div class="nav-categories">
+                <ul>{% for cat in categories %}<li><a href="/category/{{ name_to_slug.get(cat, 'index') }}">{{ cat }}</a></li>{% endfor %}</ul>
+            </div>
+        </nav>
+    </header>
+    <main>{% block content %}{% endblock %}</main>
+    <section class="subscribe-section">
+        <div class="subscribe-kicker">Stay Connected</div>
+        <h2 class="subscribe-title">订阅我们的资讯</h2>
+        <div class="subscribe-buttons">
+            <a href="/rss.xml" class="subscribe-btn" target="_blank">RSS订阅</a>
+            <button class="subscribe-btn" onclick="alert('Ctrl+D 添加到书签')">收藏本站</button>
+        </div>
+    </section>
+    <footer>
+        <div class="footer-content">
+            <div class="footer-links"><a href="/">首页</a><a href="/paper">报纸</a><a href="/about">关于</a><a href="/rss.xml">RSS</a></div>
+            <span style="font-family: var(--wired-font-mono); font-size: 0.7em; color: var(--wired-gray);">&copy; 2024 <a href="/sitemap.xml">Sitemap</a></span>
+        </div>
+    </footer>
+    <script>
+    (function() {
+        var sid = localStorage.getItem('ds_s') || 's_' + Date.now() + '_' + Math.random().toString(36).substr(2,9);
+        localStorage.setItem('ds_s', sid);
+        var vid = null, start = Date.now();
+        fetch('/api/track', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({path:location.pathname, session_id:sid})})
+            .then(r=>r.json()).then(d=>{vid=d.view_id; setInterval(function(){if(vid)fetch('/api/track/heartbeat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({view_id:vid,dwell_time:Math.round((Date.now()-start)/1000)})}).catch(function(){})},30000);}).catch(function(){});
+        document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden'&&vid)navigator.sendBeacon('/api/track/heartbeat',JSON.stringify({view_id:vid,dwell_time:Math.round((Date.now()-start)/1000)}))});
+        window.addEventListener('beforeunload',function(){if(vid)navigator.sendBeacon('/api/track/heartbeat',JSON.stringify({view_id:vid,dwell_time:Math.round((Date.now()-start)/1000)}))});
+    })();
+    </script>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

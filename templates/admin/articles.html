@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文章管理 - 66必读管理后台</title>
+    <link rel="stylesheet" href="/static/css/admin.css">
+</head>
+<body>
+    <div class="admin-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header"><div class="sidebar-logo">📖 66必读</div></div>
+            <nav class="sidebar-nav">
+                <a href="/admin/" class="nav-item"><span class="nav-icon">📊</span><span class="nav-text">数据看板</span></a>
+                <a href="/admin/articles" class="nav-item active"><span class="nav-icon">📝</span><span class="nav-text">文章管理</span></a>
+                <a href="/admin/articles/new" class="nav-item"><span class="nav-icon">➕</span><span class="nav-text">发布文章</span></a>
+                <a href="/admin/categories" class="nav-item"><span class="nav-icon">📂</span><span class="nav-text">分类管理</span></a>
+                <a href="/admin/cron-log" class="nav-item"><span class="nav-icon">📜</span><span class="nav-text">采集日志</span></a>
+                <a href="/admin/settings" class="nav-item"><span class="nav-icon">⚙️</span><span class="nav-text">站点设置</span></a>
+                <a href="/admin/monitor" class="nav-item"><span class="nav-icon">📈</span><span class="nav-text">服务器监控</span></a>
+                <a href="/admin/users" class="nav-item"><span class="nav-icon">👥</span><span class="nav-text">用户管理</span></a>
+                <a href="/" class="nav-item"><span class="nav-icon">👀</span><span class="nav-text">查看网站</span></a>
+            </nav>
+        </aside>
+        <main class="main-content">
+            <div class="page-header">
+                <h1 class="page-title">文章管理</h1>
+                <a href="/admin/articles/new" class="btn btn-primary">➕ 发布文章</a>
+            </div>
+            
+            <form class="search-box" method="get">
+                <input type="text" name="q" class="form-control" placeholder="搜索文章标题..." value="{{ request.args.get('q', '') }}">
+                <select name="category" class="form-control" style="width:150px;">
+                    <option value="">全部分类</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat }}" {% if request.args.get('category') == cat %}selected{% endif %}>{{ cat }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-primary">搜索</button>
+            </form>
+            
+            <div class="card">
+                <div class="table-wrapper">
+                    <table>
+                        <thead><tr><th style="width:50px;">ID</th><th>标题</th><th>分类</th><th>来源</th><th>状态</th><th>时间</th><th>阅读</th><th style="width:180px;">操作</th></tr></thead>
+                        <tbody>
+                        {% for article in articles %}
+                        <tr>
+                            <td>{{ article.id }}</td>
+                            <td><a href="/admin/articles/{{ article.id }}/edit" style="color: var(--primary);">{{ article.title[:50] }}{% if article.title|length > 50 %}...{% endif %}</a></td>
+                            <td><span class="badge badge-primary">{{ article.category }}</span></td>
+                            <td>{{ article.source or '-' }}</td>
+                            <td>
+                                {% if article.is_published %}
+                                <span class="badge badge-success">已发布</span>
+                                {% else %}
+                                <span class="badge badge-warning">草稿</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ article.created_at.strftime('%Y-%m-%d') if article.created_at else '-' }}</td>
+                            <td>{{ article.view_count or 0 }}</td>
+                            <td>
+                                <a href="/admin/articles/{{ article.id }}/edit" class="btn btn-sm btn-outline">编辑</a>
+                                <a href="/article/{{ article.id }}" target="_blank" class="btn btn-sm btn-info">查看</a>
+                                <form method="post" action="/admin/articles/{{ article.id }}/delete" style="display:inline;" onsubmit="return confirm('确认删除？');">
+                                    <button type="submit" class="btn btn-sm btn-danger">删除</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-secondary);">暂无文章</td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            {% if total_pages > 1 %}
+            <div class="pagination">
+                {% if page > 1 %}<a href="?page={{ page-1 }}&q={{ request.args.get('q', '') }}&category={{ request.args.get('category', '') }}">上一页</a>{% endif %}
+                {% for p in range(1, total_pages+1) %}
+                <a href="?page={{ p }}&q={{ request.args.get('q', '') }}&category={{ request.args.get('category', '') }}" {% if p == page %}class="active"{% endif %}>{{ p }}</a>
+                {% endfor %}
+                {% if page < total_pages %}<a href="?page={{ page+1 }}&q={{ request.args.get('q', '') }}&category={{ request.args.get('category', '') }}">下一页</a>{% endif %}
+            </div>
+            {% endif %}
+        </main>
+    </div>
+</body>
+</html>

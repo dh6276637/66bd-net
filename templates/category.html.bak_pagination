@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}{{ category }} - 66必读{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+    <a href="/">首页</a> / <span class="current">{{ category }}</span>
+</div>
+
+<section class="article-list" id="article-list">
+{% if articles and articles|length > 0 %}
+{% for article in articles %}
+<article class="article-item" data-id="{{ article.id }}" data-category="{{ article.category }}">
+    <header class="article-header">
+        <div class="article-category"><a href="/category/{{ article.slug }}" class="kicker">{{ article.category }}</a></div>
+        <h2 class="article-title"><a href="/article/{{ article.id }}">{{ article.title_cn or article.title }}</a></h2>
+        <div class="article-meta">
+            <span class="source-tag" style="background:{{ article.source_config.color }}20; color:{{ article.source_config.color }}">{{ article.source_config.icon }} {{ article.source or '原创' }}</span>
+            <span>{{ article.created_at.strftime('%m-%d') if article.created_at else '' }}</span>
+        </div>
+    </header>
+</article>
+{% endfor %}
+{% else %}
+<p class="no-content">暂无内容</p>
+{% endif %}
+</section>
+
+<div id="loading-indicator" class="loading-indicator" style="display:none;"><span>加载中...</span></div>
+<div id="no-more-articles" class="no-more-articles" style="display:none;"><span>没有更多了</span></div>
+
+<script>
+let currentPage = 1, isLoading = false, hasMore = true, currentCategory = '{{ category }}';
+
+function initInfiniteScroll() {
+    window.addEventListener('scroll', function() {
+        if (!hasMore || isLoading) return;
+        if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
+            loadMoreArticles();
+        }
+    });
+}
+
+async function loadMoreArticles() {
+    isLoading = true;
+    document.getElementById('loading-indicator').style.display = 'block';
+    try {
+        const url = '/api/articles?page=' + (currentPage + 1) + '&category=' + encodeURIComponent(currentCategory);
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.articles && data.articles.length > 0) {
+            appendArticles(data.articles);
+            currentPage++;
+            hasMore = data.has_more;
+        } else {
+            hasMore = false;
+        }
+    } catch (err) { console.error(err); }
+    document.getElementById('loading-indicator').style.display = 'none';
+    if (!hasMore) document.getElementById('no-more-articles').style.display = 'block';
+    isLoading = false;
+}
+
+function appendArticles(articles) {
+    const container = document.getElementById('article-list');
+    articles.forEach(function(a) {
+        const div = document.createElement('article');
+        div.className = 'article-item';
+        div.dataset.id = a.id;
+        const title = a.title_cn || a.title;
+        div.innerHTML = '<header class="article-header"><div class="article-category"><a href="/category/' + a.slug + '" class="kicker">' + a.category + '</a></div><h2 class="article-title"><a href="/article/' + a.id + '">' + title + '</a></h2><div class="article-meta"><span class="source-tag" style="background:' + (a.source_config ? a.source_config.color : '#666') + '20;color:' + (a.source_config ? a.source_config.color : '#666') + '">' + (a.source_config ? a.source_config.icon : '') + ' ' + (a.source || '原创') + '</span><span>' + (a.created_at ? a.created_at.substring(5, 10) : '') + '</span></div></header>';
+        container.appendChild(div);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', initInfiniteScroll);
+</script>
+{% endblock %}

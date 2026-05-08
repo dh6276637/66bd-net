@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="profile-page">
+    <h1>个人中心</h1>
+    <div class="profile-info">
+        <div class="info-item"><label>用户名:</label><span>{{ user.username }}</span></div>
+        <div class="info-item"><label>邮箱:</label><span>{{ user.email }}</span></div>
+        <div class="info-item"><label>注册时间:</label><span>{{ user.created_at.strftime('%Y-%m-%d') if user.created_at else '' }}</span></div>
+        <div class="info-item"><label>收藏数:</label><span>{{ fav_count }}</span></div>
+    </div>
+    <div class="profile-actions">
+        <a href="/user/favorites" class="btn">我的收藏</a>
+        <button onclick="logout()" class="btn">退出登录</button>
+    </div>
+</div>
+
+<style>
+.profile-page { max-width: 600px; margin: 0 auto; }
+.profile-page h1 { margin-bottom: 30px; font-size: 1.8em; }
+.profile-info { background: #f8f8f8; padding: 20px; border-radius: 5px; margin-bottom: 20px; }
+.info-item { display: flex; padding: 10px 0; border-bottom: 1px solid #eee; }
+.info-item:last-child { border-bottom: none; }
+.info-item label { font-family: var(--wired-font-mono); font-size: 0.85em; color: #666; width: 100px; }
+.info-item span { flex: 1; }
+.profile-actions { display: flex; gap: 15px; }
+.btn { font-family: var(--wired-font-mono); font-size: 0.85em; padding: 10px 20px; border: 1px solid var(--wired-black); background: var(--wired-white); cursor: pointer; text-decoration: none; display: inline-block; }
+.btn:hover { background: var(--wired-black); color: var(--wired-white); }
+</style>
+{% endblock %}
