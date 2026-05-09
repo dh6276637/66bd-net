@@ -2,14 +2,49 @@
 
 {% block title %}{{ article.title_cn or article.title }} - 66必读{% endblock %}
 
+{% block og_title %}{{ article.title_cn or article.title }}{% endblock %}
+{% block og_desc %}{{ article.summary or (article.title_cn or article.title)[:100] }}{% endblock %}
+{% block og_type %}article{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "{{ article.title_cn or article.title }}",
+    "description": "{{ article.summary or '' }}",
+    "image": "{% if article.image_url %}{{ article.image_url }}{% else %}https://www.66bd.net/static/og-default.png{% endif %}",
+    "author": {
+        "@type": "Person",
+        "name": "{{ article.source or '66必读' }}"
+    },
+    "publisher": {
+        "@type": "Organization",
+        "name": "66必读",
+        "logo": {
+            "@type": "ImageObject",
+            "url": "https://www.66bd.net/static/logo.png"
+        }
+    },
+    "datePublished": "{{ article.created_at.strftime('%Y-%m-%d') if article.created_at else '' }}",
+    "dateModified": "{{ article.updated_at.strftime('%Y-%m-%d') if article.updated_at else article.created_at.strftime('%Y-%m-%d') if article.created_at else '' }}",
+    "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": "{{ request.url }}"
+    },
+    "articleSection": "{{ article.category }}"
+}
+</script>
+{% endblock %}
+
 {% block content %}
-<article class="article-detail">
-    <header class="article-header">
-        <div class="article-category"><a href="/category/{{ article.slug }}" class="kicker">{{ article.category }}</a></div>
-        <h1 class="article-title">{{ article.title_cn or article.title }}</h1>
+<article class="article-detail" itemscope itemtype="https://schema.org/Article">
+    <header class="article-header" itemprop="articleSection">
+        <div class="article-category"><a href="/category/{{ article.slug }}" class="kicker" itemprop="articleSection">{{ article.category }}</a></div>
+        <h1 class="article-title" itemprop="headline">{{ article.title_cn or article.title }}</h1>
         <div class="article-meta">
-            <span class="source-tag" style="background:{{ article.source_config.color }}20; color:{{ article.source_config.color }}">{{ article.source_config.icon }} {{ article.source or '原创' }}</span>
-            <span>{{ article.created_at.strftime('%Y-%m-%d') if article.created_at else '' }}</span>
+            <span class="source-tag" style="background:{{ article.source_config.color }}20; color:{{ article.source_config.color }}" itemprop="author">{{ article.source_config.icon }} {{ article.source or '原创' }}</span>
+            <span itemprop="datePublished">{{ article.created_at.strftime('%Y-%m-%d') if article.created_at else '' }}</span>
             <span>{{ article.view_count or 0 }} 阅读</span>
             <span class="favorite-btn {% if is_favorited %}active{% endif %}" onclick="toggleFavorite({{ article.id }}, this)">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="{% if is_favorited %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
@@ -18,15 +53,15 @@
         </div>
     </header>
     
-    <div class="article-content">
+    <div class="article-content" itemprop="articleBody">
         {% if content_cn_html %}
-        <div class="content-cn">{{ content_cn_html|safe }}</div>
+        <div class="content-cn" itemprop="text">{{ content_cn_html|safe }}</div>
         {% endif %}
         {% if content_html and content_cn_html %}
         <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
         {% endif %}
         {% if content_html and not content_cn_html %}
-        <div class="content-en">{{ content_html|safe }}</div>
+        <div class="content-en" itemprop="text">{{ content_html|safe }}</div>
         {% endif %}
         {% if not content_html and not content_cn_html %}
         <div class="no-content-notice">
@@ -47,7 +82,7 @@
             {% if 'github.com' in article.url %}
             <span>📦 源项目：</span>
             <a href="{{ article.url }}" target="_blank" rel="noopener" class="gh-link-btn">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"></path></svg>
                 查看 GitHub 仓库
             </a>
             {% else %}
@@ -63,25 +98,44 @@
 <style>
 .article-detail { max-width: 720px; margin: 0 auto; }
 .article-header { margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
-.article-title { font-size: 1.5em; margin: 12px 0; line-height: 1.35; }
-.article-meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: .82rem; color: var(--text-secondary); }
-.kicker { font-size: .75rem; color: var(--text-secondary); text-decoration: none; background: var(--bg-hover); padding: 2px 8px; border-radius: 4px; }
-.article-content { font-size: 1.05em; line-height: 1.85; }
-.article-content p { margin-bottom: 1.1em; }
-.article-content .gh-link { background: var(--bg-secondary); padding: 10px 14px; margin: 12px 0; border-radius: 8px; }
-.article-content .gh-stat { display: inline-block; background: var(--bg-secondary); padding: 3px 10px; margin: 4px 4px 4px 0; border-radius: 6px; font-size: .82rem; }
-.article-content .gh-stat-label { color: var(--text-secondary); margin-right: 4px; }
-.favorite-btn { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; color: var(--text-secondary); }
-.favorite-btn:hover, .favorite-btn.active { color: #ef4444; }
-.no-content-notice { background: var(--bg-secondary); padding: 20px; border-radius: var(--radius); text-align: center; color: var(--text-secondary); }
-.no-content-notice p { margin: 8px 0; }
-.source-link a { color: var(--accent); text-decoration: none; }
-.source-link a:hover { text-decoration: underline; }
-
-.source-project-link { margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border); }
-.link-box { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 16px; background: var(--bg-secondary); border-radius: 8px; }
+.article-title { font-size: 1.5em; margin: 8px 0; line-height: 1.5; font-weight: 700; }
+.article-meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 0.85em; color: var(--text-secondary); }
+.article-content { line-height: 1.8; color: var(--text-primary); font-size: 1rem; }
+.article-content p { margin: 1em 0; }
+.article-content img { max-width: 100%; height: auto; border-radius: 8px; margin: 16px 0; }
+.article-content a { color: var(--accent); text-decoration: none; }
+.article-content a:hover { text-decoration: underline; }
+.article-content pre { background: var(--bg-secondary); padding: 16px; border-radius: 8px; overflow-x: auto; margin: 16px 0; }
+.article-content code { font-family: 'Fira Code', 'Consolas', monospace; font-size: 0.9em; }
+.article-content pre code { background: none; padding: 0; }
+.source-project-link { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--border); }
+.link-box { display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--bg-secondary); border-radius: 12px; }
 .link-icon { font-size: 1.2em; }
-.gh-link-btn, .ext-link-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: #24292e; color: #fff !important; text-decoration: none; border-radius: 6px; font-size: .9rem; transition: opacity 0.2s; }
-.gh-link-btn:hover, .ext-link-btn:hover { opacity: 0.85; }
+.ext-link-btn, .gh-link-btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: all 0.2s; }
+.ext-link-btn { background: var(--accent); color: white; }
+.gh-link-btn { background: #24292e; color: white; }
+.ext-link-btn:hover, .gh-link-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+.no-content-notice { text-align: center; padding: 40px 20px; color: var(--text-secondary); }
+.no-content-notice p { margin: 8px 0; }
+.source-link { font-size: 0.9em; }
+.favorite-btn { cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+.favorite-btn.active { color: #e74c3c; }
+@media (max-width: 768px) {
+    .article-title { font-size: 1.3em; }
+    .article-meta { font-size: 0.8em; }
+}
 </style>
+
+<script>
+document.querySelectorAll('.copy-link').forEach(btn => {
+    btn.addEventListener('click', async () => {
+        try {
+            await navigator.clipboard.writeText(window.location.href);
+            alert('链接已复制');
+        } catch (err) {
+            console.error('复制失败', err);
+        }
+    });
+});
+</script>
 {% endblock %}

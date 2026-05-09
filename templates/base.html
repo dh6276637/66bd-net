@@ -6,11 +6,57 @@
     <meta name="robots" content="index, follow">
     <meta name="applicable-device" content="pc,mobile">
     <meta name="theme-color" content="#fafafa">
+    <meta name="format-detection" content="telephone=no">
     <title>{% block title %}{% if seo and seo.title %}{{ seo.title }}{% else %}66必读 - 每日精选科技资讯{% endif %}{% endblock %}</title>
-    <meta name="description" content="{% block description %}66必读，简洁、高效、无干扰的阅读体验，让信息获取更加纯粹。{% endblock %}">
+    <meta name="description" content="{% block description %}66必读，简洁、高效、无干扰的阅读体验，让信息获取更加纯粹。每日精选科技、人工智能、创业投资等领域的优质资讯。{% endblock %}">
     <link rel="canonical" href="{{ request.url }}">
+    
+    <!-- Open Graph / 微信分享优化 -->
+    {% block og_tags %}
+    <meta property="og:title" content="{% block og_title %}{% if seo and seo.title %}{{ seo.title }}{% else %}66必读 - 每日精选科技资讯{% endif %}{% endblock %}">
+    <meta property="og:description" content="{% block og_desc %}66必读，简洁、高效、无干扰的阅读体验，让信息获取更加纯粹。{% endblock %}">
+    <meta property="og:image" content="{% block og_image %}https://www.66bd.net/static/og-default.png{% endblock %}">
+    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+    <meta property="og:site_name" content="66必读">
+    {% endblock %}
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{% block tw_title %}{% if seo and seo.title %}{{ seo.title }}{% else %}66必读 - 每日精选科技资讯{% endif %}{% endblock %}">
+    <meta name="twitter:description" content="{% block tw_desc %}66必读，简洁、高效、无干扰的阅读体验。{% endblock %}">
+    <meta name="twitter:image" content="{% block tw_image %}https://www.66bd.net/static/og-default.png{% endblock %}">
+    
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/wired-style.css?v=4">
+    
+    <!-- 结构化数据 - Organization -->
+    {% block structured_data %}
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "66必读",
+        "alternateName": "66BD",
+        "url": "https://www.66bd.net",
+        "description": "简洁、高效、无干扰的阅读体验，让信息获取更加纯粹",
+        "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://www.66bd.net/search?q={search_term_string}",
+            "query-input": "required name=search_term_string"
+        },
+        "publisher": {
+            "@type": "Organization",
+            "name": "66必读",
+            "logo": {
+                "@type": "ImageObject",
+                "url": "https://www.66bd.net/static/logo.png"
+            }
+        }
+    }
+    </script>
+    {% endblock %}
+    
     {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -218,24 +264,8 @@
 
     <script>
     (function(){var sid=localStorage.getItem('ds_s')||'s_'+Date.now()+'_'+Math.random().toString(36).substr(2,9);localStorage.setItem('ds_s',sid);fetch('/api/track',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:location.pathname,session_id:sid})}).catch(function(){})})();
-
-    // 返回顶部功能
-    function backToTop() {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-    window.addEventListener('scroll', function() {
-        var btn = document.getElementById('backToTop');
-        if (btn) {
-            if (window.pageYOffset > window.innerHeight) {
-                btn.classList.add('show');
-            } else {
-                btn.classList.remove('show');
-            }
-        }
-    });
     </script>
 
     {% block extra_scripts %}{% endblock %}
 </body>
 </html>
-

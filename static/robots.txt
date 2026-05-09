@@ -2,7 +2,11 @@ User-agent: *
 Allow: /
 Disallow: /admin/
 Disallow: /api/
+Disallow: /user/
+Disallow: /*.json$
+Disallow: /api/*
 
+# 阻止爬虫
 User-agent: scrapy
 Disallow: /
 
@@ -14,3 +18,12 @@ Disallow: /
 
 User-agent: wget
 Disallow: /
+
+# sitemap
+Sitemap: https://www.66bd.net/sitemap.xml
+
+# 百度站长平台
+User-agent: Baiduspider
+Allow: /
+Disallow: /admin/
+Disallow: /api/

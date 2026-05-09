@@ -1,0 +1,470 @@
+{% extends "base.html" %}
+
+{% block title %}{{ date }} 每日报纸 - 66必读{% endblock %}
+
+{% block content %}
+<div class="paper-day-container">
+    <!-- 报纸头版 -->
+    <header class="paper-day-header">
+        <div class="header-meta">
+            <a href="{{ url_for('newspaper_list') }}" class="back-link">← 返回报纸列表</a>
+            <span class="header-date">{{ date }}</span>
+        </div>
+        
+        <div class="paper-headline">
+            <div class="headline-date">
+                {% set parts = date.split('-') %}
+                {% if parts|length == 3 %}
+                <span class="year">{{ parts[0] }}年</span>
+                <span class="month">{{ parts[1] }}月</span>
+                <span class="day">{{ parts[2] }}日</span>
+                {% else %}
+                <span class="day-text">{{ date }}</span>
+                {% endif %}
+            </div>
+            <h1 class="paper-title">66必读</h1>
+            <div class="headline-count">{{ total_count }}篇精选资讯</div>
+        </div>
+        
+        <div class="header-nav">
+            {% if prev_date %}
+            <a href="{{ url_for('newspaper_date', date=prev_date) }}" class="nav-btn prev-day">← {{ prev_date }}</a>
+            {% endif %}
+            {% if next_date %}
+            <a href="{{ url_for('newspaper_date', date=next_date) }}" class="nav-btn next-day">{{ next_date }} →</a>
+            {% endif %}
+        </div>
+    </header>
+
+    <!-- 分类板块 -->
+    <div class="paper-sections">
+        {% for cat_data in categories_data %}
+        <section class="paper-section" id="section-{{ loop.index }}">
+            <div class="section-header">
+                <div class="section-icon">
+                    {% if '智能AI' in cat_data.name %}🤖
+                    {% elif '安全' in cat_data.name %}🛡️
+                    {% elif '汽车' in cat_data.name %}🚗
+                    {% elif '游戏' in cat_data.name %}🎮
+                    {% elif '时政' in cat_data.name %}🌐
+                    {% elif '开发' in cat_data.name %}💻
+                    {% elif '硬件' in cat_data.name %}📱
+                    {% elif '开源' in cat_data.name %}📦
+                    {% elif '社会' in cat_data.name %}📰
+                    {% elif '科技' in cat_data.name %}🚀
+                    {% else %}📌{% endif %}
+                </div>
+                <h2 class="section-name">{{ cat_data.name }}</h2>
+                <span class="section-count">{{ cat_data.articles|length }}篇</span>
+            </div>
+            
+            <div class="section-articles">
+                {% for article in cat_data.articles %}
+                <article class="paper-article">
+                    {% if loop.first %}
+                    <div class="article-featured">
+                        <h3 class="article-title">
+                            <a href="{{ url_for('article_detail', id=article.id) }}">{{ article.title }}</a>
+                        </h3>
+                        {% if article.summary %}
+                        <p class="article-summary">{{ article.summary }}</p>
+                        {% endif %}
+                        <div class="article-meta">
+                            <span class="meta-source">{{ article.source_config.icon|default('📰') }} {{ article.source|default('') }}</span>
+                            <span class="meta-time">{{ article.created_at.strftime('%H:%M') if article.created_at else '' }}</span>
+                            <a href="{{ url_for('article_detail', id=article.id) }}" class="read-more">阅读全文 →</a>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="article-item">
+                        <h4 class="article-title-small">
+                            <a href="{{ url_for('article_detail', id=article.id) }}">{{ article.title }}</a>
+                        </h4>
+                        <div class="article-meta-small">
+                            <span class="meta-source">{{ article.source_config.icon|default('📰') }} {{ article.source|default('') }}</span>
+                            <span class="meta-time">{{ article.created_at.strftime('%H:%M') if article.created_at else '' }}</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+        {% endfor %}
+    </div>
+
+    {% if not categories_data %}
+    <div class="empty-paper">
+        <div class="empty-icon">📭</div>
+        <h2>当日暂无内容</h2>
+        <p>该日期暂无发布的资讯</p>
+        <a href="{{ url_for('newspaper_list') }}" class="btn-back-list">查看其他日期</a>
+    </div>
+    {% endif %}
+
+    <!-- 底部导航 -->
+    <footer class="paper-footer">
+        <div class="footer-nav">
+            {% if prev_date %}
+            <a href="{{ url_for('newspaper_date', date=prev_date) }}" class="footer-nav-btn">
+                <span class="nav-label">前一天</span>
+                <span class="nav-date">{{ prev_date }}</span>
+            </a>
+            {% endif %}
+            <a href="{{ url_for('newspaper_list') }}" class="footer-nav-btn home">
+                <span class="nav-label">报纸列表</span>
+                <span class="nav-date">📰</span>
+            </a>
+            {% if next_date %}
+            <a href="{{ url_for('newspaper_date', date=next_date) }}" class="footer-nav-btn">
+                <span class="nav-label">后一天</span>
+                <span class="nav-date">{{ next_date }}</span>
+            </a>
+            {% endif %}
+        </div>
+    </footer>
+</div>
+
+<style>
+.paper-day-container {
+    max-width: 900px;
+    margin: 0 auto;
+    background: #fff;
+}
+
+/* 报纸头版 */
+.paper-day-header {
+    background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+    color: white;
+    padding: 30px;
+    text-align: center;
+}
+
+.header-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    font-size: 0.85rem;
+}
+
+.back-link {
+    color: rgba(255,255,255,0.8);
+    text-decoration: none;
+}
+
+.back-link:hover {
+    color: white;
+}
+
+.paper-headline {
+    margin-bottom: 25px;
+}
+
+.headline-date {
+    font-size: 0.9rem;
+    opacity: 0.7;
+    margin-bottom: 10px;
+}
+
+.headline-date .year { margin-right: 5px; }
+.headline-date .month { margin-right: 5px; }
+.headline-date .day { font-weight: 700; }
+
+.paper-title {
+    font-size: 3rem;
+    font-weight: 900;
+    letter-spacing: 12px;
+    margin: 0;
+    text-shadow: 3px 3px 6px rgba(0,0,0,0.3);
+}
+
+.headline-count {
+    font-size: 1rem;
+    opacity: 0.8;
+    margin-top: 10px;
+}
+
+.header-nav {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+}
+
+.nav-btn {
+    color: rgba(255,255,255,0.8);
+    text-decoration: none;
+    padding: 8px 16px;
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 20px;
+    transition: all 0.2s;
+}
+
+.nav-btn:hover {
+    background: rgba(255,255,255,0.1);
+    color: white;
+    border-color: rgba(255,255,255,0.5);
+}
+
+/* 分类板块 */
+.paper-sections {
+    padding: 0 20px 30px;
+}
+
+.paper-section {
+    margin-top: 30px;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 25px;
+}
+
+.paper-section:last-child {
+    border-bottom: none;
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #1a1a2e;
+}
+
+.section-icon {
+    font-size: 1.5rem;
+}
+
+.section-name {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin: 0;
+}
+
+.section-count {
+    margin-left: auto;
+    background: #f0f2f5;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    color: #666;
+}
+
+/* 文章列表 */
+.section-articles {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.paper-article {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 20px;
+    transition: all 0.2s;
+}
+
+.paper-article:hover {
+    background: #f0f2f5;
+    transform: translateX(5px);
+}
+
+.article-featured {
+    border-left: 4px solid #667eea;
+    padding-left: 15px;
+}
+
+.article-featured .article-title {
+    margin: 0 0 12px;
+    font-size: 1.2rem;
+}
+
+.article-featured .article-title a {
+    color: #1a1a2e;
+    text-decoration: none;
+}
+
+.article-featured .article-title a:hover {
+    color: #667eea;
+}
+
+.article-summary {
+    color: #555;
+    line-height: 1.7;
+    margin-bottom: 15px;
+    font-size: 0.95rem;
+}
+
+.article-meta {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    font-size: 0.8rem;
+    color: #888;
+}
+
+.read-more {
+    margin-left: auto;
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.read-more:hover {
+    text-decoration: underline;
+}
+
+.article-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 15px;
+}
+
+.article-title-small {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.article-title-small a {
+    color: #333;
+    text-decoration: none;
+}
+
+.article-title-small a:hover {
+    color: #667eea;
+}
+
+.article-meta-small {
+    display: flex;
+    gap: 10px;
+    font-size: 0.75rem;
+    color: #888;
+    white-space: nowrap;
+}
+
+/* 空状态 */
+.empty-paper {
+    text-align: center;
+    padding: 80px 20px;
+}
+
+.empty-icon {
+    font-size: 4rem;
+    margin-bottom: 20px;
+}
+
+.empty-paper h2 {
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.empty-paper p {
+    color: #888;
+    margin-bottom: 25px;
+}
+
+.btn-back-list {
+    display: inline-block;
+    padding: 12px 30px;
+    background: #1a1a2e;
+    color: white;
+    text-decoration: none;
+    border-radius: 25px;
+}
+
+.btn-back-list:hover {
+    background: #16213e;
+}
+
+/* 底部导航 */
+.paper-footer {
+    background: #f8f9fa;
+    padding: 20px;
+    border-top: 1px solid #eee;
+}
+
+.footer-nav {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+}
+
+.footer-nav-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 25px;
+    background: white;
+    border-radius: 10px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s;
+    min-width: 120px;
+}
+
+.footer-nav-btn:hover {
+    background: #1a1a2e;
+    color: white;
+}
+
+.footer-nav-btn.home {
+    background: #1a1a2e;
+    color: white;
+}
+
+.footer-nav-btn.home:hover {
+    background: #16213e;
+}
+
+.nav-label {
+    font-size: 0.8rem;
+    color: #888;
+}
+
+.footer-nav-btn:hover .nav-label {
+    color: rgba(255,255,255,0.7);
+}
+
+.nav-date {
+    font-weight: 600;
+    margin-top: 4px;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+    .paper-title {
+        font-size: 2rem;
+        letter-spacing: 6px;
+    }
+    
+    .header-meta {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .header-nav {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .paper-sections {
+        padding: 0 15px 20px;
+    }
+    
+    .article-item {
+        flex-direction: column;
+    }
+    
+    .footer-nav {
+        flex-direction: row;
+    }
+    
+    .footer-nav-btn {
+        flex: 1;
+        min-width: auto;
+    }
+}
+</style>
+{% endblock %}

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>操作日志 - 66必读管理后台</title>
+    <link rel="stylesheet" href="/static/css/admin.css">
+    <style>
+        .filter-bar { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+        .filter-bar select, .filter-bar input { padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 4px; }
+        .filter-bar input[type="text"] { width: 200px; }
+        .log-table { width: 100%; }
+        .log-table th { background: var(--bg-page); }
+        .log-table td { vertical-align: top; }
+        .action-badge { 
+            display: inline-block; 
+            padding: 4px 10px; 
+            border-radius: 4px; 
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .action-login { background: rgba(64, 158, 255, 0.1); color: var(--primary); }
+        .action-logout { background: rgba(103, 194, 58, 0.1); color: var(--success); }
+        .action-article { background: rgba(230, 162, 60, 0.1); color: var(--warning); }
+        .action-category { background: rgba(245, 108, 108, 0.1); color: var(--danger); }
+        .action-setting { background: rgba(144, 147, 153, 0.1); color: #909399; }
+        .action-user { background: rgba(233, 30, 99, 0.1); color: #e91e63; }
+        .action-cron { background: rgba(0, 150, 136, 0.1); color: #009688; }
+        .detail-box { 
+            font-size: 12px; 
+            color: var(--text-secondary);
+            max-width: 300px;
+            word-break: break-all;
+        }
+        .ip-info { color: var(--text-secondary); font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="admin-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">📖 66必读</div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/admin/" class="nav-item"><span class="nav-icon">📊</span><span class="nav-text">数据看板</span></a>
+                <a href="/admin/articles" class="nav-item"><span class="nav-icon">📝</span><span class="nav-text">文章管理</span></a>
+                <a href="/admin/articles/new" class="nav-item"><span class="nav-icon">➕</span><span class="nav-text">发布文章</span></a>
+                <a href="/admin/categories" class="nav-item"><span class="nav-icon">📂</span><span class="nav-text">分类管理</span></a>
+                <a href="/admin/cron-log" class="nav-item"><span class="nav-icon">📜</span><span class="nav-text">采集日志</span></a>
+                <a href="/admin/action-log" class="nav-item active"><span class="nav-icon">📋</span><span class="nav-text">操作日志</span></a>
+                <a href="/admin/settings" class="nav-item"><span class="nav-icon">⚙️</span><span class="nav-text">站点设置</span></a>
+                <a href="/admin/monitor" class="nav-item"><span class="nav-icon">📈</span><span class="nav-text">服务器监控</span></a>
+                <a href="/admin/users" class="nav-item"><span class="nav-icon">👥</span><span class="nav-text">用户管理</span></a>
+                <a href="/" class="nav-item"><span class="nav-icon">👀</span><span class="nav-text">查看网站</span></a>
+            </nav>
+        </aside>
+        <main class="main-content">
+            <div class="page-header">
+                <h1 class="page-title">📋 操作日志</h1>
+            </div>
+            
+            <div class="filter-bar">
+                <form method="get" style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
+                    <select name="action" onchange="this.form.submit()">
+                        <option value="">全部操作</option>
+                        {% for act in all_actions %}
+                        <option value="{{ act }}" {% if action_filter == act %}selected{% endif %}>{{ act }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="text" name="search" placeholder="搜索用户/对象/详情" value="{{ search }}">
+                    <button type="submit" class="btn btn-sm btn-outline">搜索</button>
+                    {% if action_filter or search %}
+                    <a href="/admin/action-log" class="btn btn-sm">清除筛选</a>
+                    {% endif %}
+                </form>
+            </div>
+            
+            <div class="card">
+                <table class="log-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 160px;">时间</th>
+                            <th style="width: 100px;">用户</th>
+                            <th style="width: 120px;">操作类型</th>
+                            <th>操作对象</th>
+                            <th>详情</th>
+                            <th style="width: 120px;">IP / UA</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td>{{ log.created_at_str or log.created_at }}</td>
+                        <td><strong>{{ log.username or '-' }}</strong></td>
+                        <td>
+                            <span class="action-badge {% if 'login' in log.action %}action-login{% elif 'logout' in log.action %}action-logout{% elif 'article' in log.action %}action-article{% elif 'category' in log.action %}action-category{% elif 'setting' in log.action %}action-setting{% elif 'user' in log.action %}action-user{% elif 'cron' in log.action %}action-cron{% endif %}">
+                                {{ log.action }}
+                            </span>
+                        </td>
+                        <td><strong>{{ log.target or '-' }}</strong></td>
+                        <td>
+                            <div class="detail-box">
+                                {% if log.detail %}
+                                {% set detail = log.detail %}
+                                {% if 'article_id' in detail %}ID:{{ detail.article_id }} {% endif %}
+                                {% if 'category' in detail %}分类:{{ detail.category }} {% endif %}
+                                {% if 'is_published' in detail %}{% if detail.is_published == 1 %}已发布{% else %}草稿{% endif %}{% endif %}
+                                {% if 'new_status' in detail %}{{ detail.new_status }}{% endif %}
+                                {% if 'changes' in detail %}
+                                {% for key, val in detail.changes.items() %}
+                                {{ key }}: {{ val.old }} → {{ val.new }}
+                                {% endfor %}
+                                {% endif %}
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="ip-info">
+                                <div>{{ log.ip or '-' }}</div>
+                                <div style="max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ log.user_agent }}">
+                                    {{ (log.user_agent[:30] + '...') if log.user_agent and log.user_agent|length > 30 else log.user_agent or '-' }}
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if not logs %}
+                    <tr><td colspan="6" style="text-align: center; padding: 40px; color: var(--text-secondary);">暂无日志记录</td></tr>
+                    {% endif %}
+                    </tbody>
+                </table>
+                
+                {% if total_pages > 1 %}
+                <div class="pagination" style="padding: 15px; display: flex; justify-content: center; gap: 10px;">
+                    {% if page > 1 %}
+                    <a href="?page={{ page-1 }}&action={{ action_filter }}&search={{ search }}" class="btn btn-sm">上一页</a>
+                    {% endif %}
+                    <span class="btn btn-sm" style="background: var(--bg-page);">第 {{ page }} / {{ total_pages }} 页</span>
+                    {% if page < total_pages %}
+                    <a href="?page={{ page+1 }}&action={{ action_filter }}&search={{ search }}" class="btn btn-sm">下一页</a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </main>
+    </div>
+</body>
+</html>

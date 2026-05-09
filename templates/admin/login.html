@@ -21,10 +21,13 @@
         <div class="login-box">
             <div class="login-logo">📖 66必读</div>
             <div class="login-subtitle">管理后台登录</div>
-            {% if error %}
-            <div class="login-error">{{ error }}</div>
-            {% endif %}
+            {% with messages = get_flashed_messages() %}
+            {% for msg in messages %}
+            <div class="login-error">{{ msg }}</div>
+            {% endfor %}
+            {% endwith %}
             <form method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <div class="form-group">
                     <label class="form-label">用户名</label>
                     <input type="text" name="username" class="form-control" placeholder="请输入用户名" required autofocus>

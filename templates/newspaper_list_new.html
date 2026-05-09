@@ -1,0 +1,383 @@
+{% extends "base.html" %}
+
+{% block title %}📰 每日报纸 - 66必读{% endblock %}
+
+{% block content %}
+<div class="newspaper-container">
+    <!-- 报纸头版 -->
+    <header class="paper-header">
+        <div class="paper-masthead">
+            <div class="masthead-left">
+                <span class="edition">第{{ dates|length }}期</span>
+            </div>
+            <h1 class="paper-name">66必读</h1>
+            <div class="masthead-right">
+                <span class="date">{{ today }}</span>
+            </div>
+        </div>
+        <div class="paper-tagline">精选资讯 · 每日更新</div>
+    </header>
+
+    <!-- 统计概览 -->
+    <div class="paper-stats">
+        <div class="stat-card">
+            <span class="stat-num">{{ dates|length }}</span>
+            <span class="stat-label">期数</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-num">{{ dates[0].cnt if dates else 0 }}</span>
+            <span class="stat-label">今日文章</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-num">{{ categories|length }}</span>
+            <span class="stat-label">内容分类</span>
+        </div>
+    </div>
+
+    <!-- 报纸卡片列表 -->
+    <div class="paper-cards">
+        {% for d in dates %}
+        <a href="{{ url_for('newspaper_date', date=d.date_str) }}" class="paper-card {% if d.date_str == today %}today{% endif %}">
+            {% if d.date_str == today %}
+            <div class="card-badge">今日</div>
+            {% endif %}
+            
+            <div class="card-date">
+                <span class="day">{{ d.date_str.split('-')[2] if '-' in d.date_str else d.date_str[6:8] }}</span>
+                <span class="month">{{ d.date_str[5:7] if '-' in d.date_str else d.date_str[4:6] }}月</span>
+            </div>
+            
+            <div class="card-weekday">
+                {% if d.date_str == today %}
+                星期{{ ['日','一','二','三','四','五','六'][today_date.weekday()] }}
+                {% else %}
+                {% set d_obj = d.date_obj if d.date_obj else none %}
+                {% if d_obj %}
+                星期{{ ['日','一','二','三','四','五','六'][d_obj.weekday()] }}
+                {% endif %}
+                {% endif %}
+            </div>
+            
+            <div class="card-articles">
+                <span class="count">{{ d.cnt }}</span>
+                <span class="unit">篇</span>
+            </div>
+            
+            <div class="card-categories">
+                {% if d.category_counts %}
+                    {% for cat, cnt in d.category_counts.items() %}
+                    <span class="cat-tag">{{ cat[:2] }}{{ cnt }}</span>
+                    {% endfor %}
+                {% endif %}
+            </div>
+            
+            <div class="card-preview">
+                {% if d.top_titles %}
+                    {% for title in d.top_titles[:3] %}
+                    <div class="preview-item">📌 {{ title[:20] }}{% if title|length > 20 %}...{% endif %}</div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+            
+            <div class="card-arrow">→</div>
+        </a>
+        {% endfor %}
+    </div>
+
+    <!-- 报纸头版风格展示 -->
+    <div class="paper-features">
+        <h2 class="features-title">📖 阅读指南</h2>
+        <div class="features-grid">
+            {% for cat in categories[:6] %}
+            <a href="{{ url_for('category_page', slug=name_to_slug.get(cat, 'index')) }}" class="feature-item">
+                <span class="feature-icon">{{ '🔬' if 'AI' in cat else '🛡️' if '安全' in cat else '🚗' if '汽车' in cat else '🎮' if '游戏' in cat else '📱' if '硬件' in cat else '🌐' if '时政' in cat else '💻' if '开发' in cat else '📰' }}</span>
+                <span class="feature-name">{{ cat }}</span>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<style>
+.newspaper-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* 报纸头版 */
+.paper-header {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    color: white;
+    padding: 30px;
+    border-radius: 16px 16px 0 0;
+    text-align: center;
+    position: relative;
+}
+
+.paper-masthead {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.paper-name {
+    font-size: 2.5rem;
+    font-weight: 900;
+    letter-spacing: 8px;
+    margin: 0;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.masthead-left .edition,
+.masthead-right .date {
+    font-size: 0.85rem;
+    opacity: 0.8;
+}
+
+.paper-tagline {
+    font-size: 0.9rem;
+    opacity: 0.7;
+    letter-spacing: 4px;
+}
+
+/* 统计概览 */
+.paper-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    background: #f8f9fa;
+    padding: 20px;
+}
+
+.stat-card {
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.stat-num {
+    display: block;
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1a1a2e;
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    color: #666;
+}
+
+/* 报纸卡片 */
+.paper-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+    padding: 20px;
+    background: #f0f2f5;
+}
+
+.paper-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    color: inherit;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    overflow: hidden;
+}
+
+.paper-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}
+
+.paper-card.today {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.paper-card.today .card-date .day {
+    font-size: 3rem;
+}
+
+.card-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #ff6b6b;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.card-date {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    margin-bottom: 8px;
+}
+
+.card-date .day {
+    font-size: 2.5rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.card-date .month {
+    font-size: 0.9rem;
+    opacity: 0.7;
+}
+
+.card-weekday {
+    font-size: 0.85rem;
+    opacity: 0.8;
+    margin-bottom: 15px;
+}
+
+.card-articles {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    margin-bottom: 15px;
+}
+
+.card-articles .count {
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+.card-articles .unit {
+    font-size: 0.9rem;
+    opacity: 0.7;
+}
+
+.card-categories {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.cat-tag {
+    background: rgba(0,0,0,0.06);
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+}
+
+.paper-card.today .cat-tag {
+    background: rgba(255,255,255,0.2);
+}
+
+.card-preview {
+    border-top: 1px dashed rgba(0,0,0,0.1);
+    padding-top: 12px;
+}
+
+.paper-card.today .card-preview {
+    border-top-color: rgba(255,255,255,0.2);
+}
+
+.preview-item {
+    font-size: 0.75rem;
+    opacity: 0.8;
+    margin-bottom: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.card-arrow {
+    position: absolute;
+    bottom: 15px;
+    right: 15px;
+    font-size: 1.2rem;
+    opacity: 0.5;
+}
+
+/* 阅读指南 */
+.paper-features {
+    background: white;
+    padding: 30px;
+    border-radius: 0 0 16px 16px;
+}
+
+.features-title {
+    font-size: 1.2rem;
+    margin-bottom: 20px;
+    color: #1a1a2e;
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 15px;
+}
+
+.feature-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 10px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s;
+}
+
+.feature-item:hover {
+    background: #1a1a2e;
+    color: white;
+}
+
+.feature-icon {
+    font-size: 1.5rem;
+    margin-bottom: 8px;
+}
+
+.feature-name {
+    font-size: 0.8rem;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+    .paper-masthead {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .paper-name {
+        font-size: 1.8rem;
+        letter-spacing: 4px;
+    }
+    
+    .paper-stats {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        padding: 15px;
+    }
+    
+    .stat-num {
+        font-size: 1.5rem;
+    }
+    
+    .paper-cards {
+        grid-template-columns: 1fr;
+        padding: 15px;
+    }
+    
+    .features-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+</style>
+{% endblock %}

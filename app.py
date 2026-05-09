@@ -6,25 +6,42 @@ from flask import Flask, render_template, request, jsonify, abort, session, redi
 from functools import wraps
 import MySQLdb
 from MySQLdb.cursors import DictCursor
-import hashlib
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import xml.etree.ElementTree as ET
 import re
 import json
+import secrets
+import html as html_module
+import os
 
 app = Flask(__name__)
-app.secret_key = 'dongshushu_paper_secret_key_2024_v7'
+# 使用强随机密钥
+app.secret_key = os.environ.get('SECRET_KEY') or secrets.token_hex(32)
 
-DB_CONFIG = {"host": "localhost", "user": "paper_user", "passwd": "paper_db2026", "db": "dongshushu_paper", "charset": "utf8mb4"}
+DB_CONFIG = {
+    "host": os.environ.get('DB_HOST', 'localhost'),
+    "user": os.environ.get('DB_USER', 'paper_user'),
+    "passwd": os.environ.get('DB_PASSWORD', 'paper_db2026'),
+    "db": os.environ.get('DB_NAME', 'dongshushu_paper'),
+    "charset": "utf8mb4"
+}
 
 CATEGORY_MAP = {
-    "index": "首页", "shizheng": "时政热点", "keji-toutiao": "科技头条",
-    "zhineng-ai": "智能AI", "anquan": "安全攻防", "kaifa": "开发者", 
-    "shuma": "数码硬件", "shehui": "社会热点",
+    "index": "首页",
+    "shizheng": "时政热点",
+    "keji-toutiao": "科技头条",
+    "zhineng-ai": "智能AI",
+    "anquan": "安全攻防",
+    "kaifa": "开发者",
+    "shuma": "数码硬件",
+    "shehui": "社会热点",
+    "qiche": "汽车",
+    "youxi": "游戏",
+    "kaiyuan": "开源推荐",
 }
 NAME_TO_SLUG = {v: k for k, v in CATEGORY_MAP.items() if k != "index"}
-ALL_CATEGORIES = ["时政热点", "科技头条", "智能AI", "安全攻防", "开发者", "数码硬件", "社会热点"]
+ALL_CATEGORIES = ["时政热点", "科技头条", "智能AI", "安全攻防", "开发者", "数码硬件", "社会热点", "汽车", "游戏", "开源推荐"]
 
 MESSAGE_BLACKLIST = ['赌博', '博彩', '彩票', '色情', '诈骗', '刷单', '微信', 'vx', 'vpn', '翻墙']
 
@@ -34,6 +51,25 @@ SOURCE_CONFIG = {
 }
 
 def get_db(): return MySQLdb.connect(**DB_CONFIG)
+
+# ============ 操作日志函数 ============
+def log_admin_action(action, target='', detail=None, user_id='', username=''):
+    """记录后台操作日志"""
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        ip = request.remote_addr or request.headers.get('X-Forwarded-For', '').split(',')[0].strip() or ''
+        user_agent = request.headers.get('User-Agent', '')[:500]
+        detail_json = json.dumps(detail, ensure_ascii=False) if detail else ''
+        cur.execute("""
+            INSERT INTO admin_log (user_id, username, action, target, detail, ip, user_agent, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+        """, (user_id, username, action, target, detail_json, ip, user_agent))
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        pass  # 日志失败不影响业务
 
 def login_required(f):
     @wraps(f)
@@ -70,15 +106,22 @@ def anti_scrape_check():
         if bad in ua: return abort(403)
 
 def text_to_html(text):
+    """安全的文本转HTML，自动转义内容，只允许http/https链接"""
     if not text: return ''
     import re as _re
-    text = _re.sub(r'项目地址:\s*(https?://\S+)', r'<div class="gh-link">🔗 <a href="\1" target="_blank">\1</a></div>', text)
+    import html as html_module
+    text = html_module.escape(text)
+    text = _re.sub(r'项目地址:\s*(https?://\S+)', r'<div class="gh-link">🔗 <a href="\1" target="_blank" rel="noopener">\1</a></div>', text)
     text = _re.sub(r'语言:\s*(\S+)', r'<div class="gh-stat"><span>语言</span><span>\1</span></div>', text)
     text = _re.sub(r'⭐\s*Stars:\s*([\d,]+)', r'<div class="gh-stat"><span>⭐ Stars</span><span>\1</span></div>', text)
     text = _re.sub(r'Forks:\s*([\d,]+)', r'<div class="gh-stat"><span>Forks</span><span>\1</span></div>', text)
     text = _re.sub(r'许可证:\s*(\S+)', r'<div class="gh-license">许可证: \1</div>', text)
     text = _re.sub(r'项目说明:\s*(.+)', r'<div class="gh-desc">📝 \1</div>', text)
-    def make_link(m): return '<a href="' + m.group(1) + '" target="_blank">' + m.group(1) + '</a> '
+    def make_link(m):
+        url = m.group(1)
+        if not url.lower().startswith(('http://', 'https://')):
+            return m.group(0)
+        return '<a href="' + url + '" target="_blank" rel="noopener">' + url + '</a> '
     text = _re.sub(r'(?<!href=")(https?://\S+?)(?:\s|$|<)', make_link, text)
     paragraphs = text.split('\n\n')
     html_parts = []
@@ -189,10 +232,34 @@ def newspaper_list():
     try:
         cur.execute("SELECT DATE(created_at) as date, COUNT(*) as cnt FROM article WHERE is_published=1 GROUP BY DATE(created_at) ORDER BY date DESC LIMIT 30")
         dates = cur.fetchall()
+        
         for d in dates:
             d['date_str'] = d['date'].strftime('%Y-%m-%d') if hasattr(d['date'], 'strftime') else str(d['date'])
+            date_str = d['date_str']
+            
+            cur.execute("""
+                SELECT category, COUNT(*) as cnt 
+                FROM article 
+                WHERE is_published=1 AND DATE(created_at)=%s 
+                GROUP BY category
+            """, (date_str,))
+            cat_counts = {row['category']: row['cnt'] for row in cur.fetchall()}
+            d['category_counts'] = cat_counts
+            
+            cur.execute("""
+                SELECT title FROM article 
+                WHERE is_published=1 AND DATE(created_at)=%s 
+                ORDER BY view_count DESC, created_at DESC 
+                LIMIT 3
+            """, (date_str,))
+            d['top_titles'] = [row['title'] for row in cur.fetchall()]
+            d['date_obj'] = d['date']
+        
         today = datetime.now().strftime('%Y-%m-%d')
-        return render_template('newspaper_list.html', dates=dates, today=today, categories=ALL_CATEGORIES, name_to_slug=NAME_TO_SLUG)
+        today_date = datetime.now()
+        
+        return render_template('newspaper_list_new.html', dates=dates, today=today, 
+                             today_date=today_date, categories=ALL_CATEGORIES, name_to_slug=NAME_TO_SLUG)
     finally:
         cur.close()
         conn.close()
@@ -221,7 +288,7 @@ def newspaper_date(date):
         next_date = (check_date + timedelta(days=1)).strftime('%Y-%m-%d')
         cur.execute("SELECT COUNT(*) as cnt FROM article WHERE is_published=1 AND DATE(created_at)=%s", (next_date,))
         has_next = cur.fetchone()['cnt'] > 0
-        return render_template('newspaper_date.html', date=date, categories_data=sorted_categories,
+        return render_template('newspaper_date_new.html', date=date, categories_data=sorted_categories,
                              today=today, prev_date=prev_date, next_date=next_date if has_next else None,
                              categories=ALL_CATEGORIES, name_to_slug=NAME_TO_SLUG)
     finally:
@@ -249,7 +316,6 @@ def messages_page():
 # ========== RESTful API ==========
 @app.route('/api/v1/articles')
 def api_v1_articles():
-    # 处理POST请求 - 添加文章
     if request.method == 'POST':
         data = request.get_json() or {}
         title = (data.get('title') or '').strip()
@@ -266,12 +332,10 @@ def api_v1_articles():
         conn = get_db()
         cur = conn.cursor(DictCursor)
         try:
-            # 检查是否已存在（基于标题去重）
             cur.execute("SELECT id FROM article WHERE title=%s LIMIT 1", (title[:200],))
             if cur.fetchone():
-                return api_response({'id': None}, '文章已存在', 200)  # 幂等返回
+                return api_response({'id': None}, '文章已存在', 200)
             
-            # 插入新文章（支持翻译字段）
             url = data.get('url', '')[:500] if data.get('url') else ''
             title_cn = (data.get('title_cn') or '').strip()[:200]
             content_cn = (data.get('content_cn') or '').strip()[:5000]
@@ -286,7 +350,6 @@ def api_v1_articles():
             cur.close()
             conn.close()
     
-    # GET请求 - 查询文章列表
     page = int(request.args.get('page', 1))
     per_page = min(int(request.args.get('page_size', 20)), 50)
     category = request.args.get('category', '')
@@ -566,18 +629,94 @@ def rss_feed():
         cur.close()
         conn.close()
 
+
+# ========== CSRF保护 ==========
+def generate_csrf_token():
+    """生成CSRF token存入session"""
+    if 'csrf_token' not in session:
+        session['csrf_token'] = secrets.token_hex(32)
+    return session['csrf_token']
+
+def validate_csrf_token():
+    """验证CSRF token"""
+    form_token = request.form.get('csrf_token', '')
+    session_token = session.get('csrf_token', '')
+    return form_token and form_token == session_token
+
+# 全局上下文处理器，注入csrf_token到所有模板
+@app.context_processor
+def inject_csrf():
+    # 确保session中有csrf_token
+    if 'csrf_token' not in session:
+        session['csrf_token'] = secrets.token_hex(32)
+    # 重要：POST请求时使用session中已有的token，不重新生成
+    return dict(csrf_token=session['csrf_token'])
+
+# ========== 登录暴力破解防护 ==========
+login_attempts = {}
+
+def is_login_locked(ip):
+    if ip in login_attempts:
+        info = login_attempts[ip]
+        if info['count'] >= 5:
+            if info.get('locked_until') and datetime.now() < info['locked_until']:
+                return True
+            else:
+                login_attempts.pop(ip, None)
+    return False
+
+def get_remaining_attempts(ip):
+    if ip in login_attempts:
+        return max(0, 5 - login_attempts[ip]['count'])
+    return 5
+
+def record_login_fail(ip):
+    if ip not in login_attempts:
+        login_attempts[ip] = {'count': 0, 'locked_until': None}
+    login_attempts[ip]['count'] += 1
+    if login_attempts[ip]['count'] >= 5:
+        login_attempts[ip]['locked_until'] = datetime.now() + timedelta(minutes=15)
+
+def reset_login_fail(ip):
+    login_attempts.pop(ip, None)
+# ============ 后台登录/登出 - 带日志和暴力破解防护 ============
 @app.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():
+    client_ip = get_client_ip()
+    
+    # 检查是否被锁定
+    if is_login_locked(client_ip):
+        locked_info = login_attempts.get(client_ip, {})
+        locked_until = locked_info.get('locked_until')
+        if locked_until:
+            minutes_left = int((locked_until - datetime.now()).total_seconds() / 60) + 1
+            flash(f'登录失败次数过多，请 {minutes_left} 分钟后再试', 'error')
+        else:
+            flash('登录失败次数过多，请稍后再试', 'error')
+        return render_template('admin/login.html')
+    
+    # GET请求时重置CSRF token
+    if request.method == 'GET':
+        session.pop('csrf_token', None)
+    
     if request.method == 'POST':
+        # 验证CSRF token
+        if not validate_csrf_token():
+            flash('安全验证失败，请刷新页面重试', 'error')
+            return render_template('admin/login.html')
         username = request.form.get('username', '')
         password = request.form.get('password', '')
         conn = get_db()
         cur = conn.cursor(DictCursor)
         try:
-            cur.execute("SELECT * FROM admin WHERE username=%s AND password=%s", (username, hashlib.md5(password.encode()).hexdigest()))
-            if cur.fetchone():
+            cur.execute("SELECT * FROM admin WHERE username=%s", (username,))
+            user = cur.fetchone()
+            if user and check_password_hash(user['password'], password):
+                reset_login_fail(client_ip)
                 session['admin_logged_in'] = True
                 session['admin_user'] = username
+                # 记录登录日志
+                log_admin_action('login', username, {'username': username}, username=username)
                 return redirect(url_for('admin_dashboard'))
             flash('用户名或密码错误')
         finally:
@@ -587,12 +726,28 @@ def admin_login():
 
 @app.route('/admin/logout')
 def admin_logout():
+    username = session.get('admin_user', '')
+    if username:
+        log_admin_action('logout', username, {}, username=username)
     session.pop('admin_logged_in', None)
     return redirect(url_for('admin_login'))
 
 @app.route('/admin/')
 @login_required
-def admin_dashboard(): return render_template('admin/dashboard.html')
+def admin_dashboard():
+    conn = get_db()
+    cur = conn.cursor(DictCursor)
+    try:
+        cur.execute("SELECT COUNT(*) as total, SUM(CASE WHEN is_published=1 THEN 1 ELSE 0 END) as published, SUM(CASE WHEN is_published=0 THEN 1 ELSE 0 END) as draft FROM article")
+        stats = cur.fetchone()
+        cur.execute("SELECT category, COUNT(*) as count FROM article GROUP BY category ORDER BY count DESC LIMIT 10")
+        category_stats = cur.fetchall()
+        cur.execute("SELECT source, COUNT(*) as count FROM article GROUP BY source ORDER BY count DESC LIMIT 10")
+        source_stats = cur.fetchall()
+        return render_template('admin/dashboard.html', stats=stats, category_stats=category_stats, source_stats=source_stats)
+    finally:
+        cur.close()
+        conn.close()
 
 @app.route('/admin/articles')
 @login_required
@@ -616,12 +771,14 @@ def admin_articles():
         cur.close()
         conn.close()
 
-
-# ============ 后台管理 - 文章编辑 ============
+# ============ 后台管理 - 文章编辑 - 带日志 ============
 @app.route('/admin/articles/new', methods=['GET', 'POST'])
 @login_required
 def admin_new_article():
     if request.method == 'POST':
+        if not validate_csrf_token():
+            flash('安全验证失败，请刷新页面重试', 'error')
+            return redirect(url_for('admin_new_article'))
         title = request.form.get('title', '')[:200]
         category = request.form.get('category', '科技头条')[:50]
         source = request.form.get('source', '')[:200]
@@ -634,6 +791,12 @@ def admin_new_article():
                           VALUES (%s, %s, %s, %s, %s, NOW())""",
                        (title, content, category, source, is_published))
             conn.commit()
+            article_id = cur.lastrowid
+            # 记录日志
+            log_admin_action('article_add', title, {
+                'article_id': article_id, 'title': title, 'category': category, 
+                'source': source, 'is_published': is_published
+            }, username=session.get('admin_user', ''))
             return redirect(url_for('admin_articles'))
         finally:
             cur.close()
@@ -659,13 +822,39 @@ def admin_edit_article(article_id):
             cur.execute("""UPDATE article SET title=%s, category=%s, source=%s, content=%s, is_published=%s WHERE id=%s""",
                        (title, category, source, content, is_published, article_id))
             conn.commit()
+            # 记录日志
+            log_admin_action('article_edit', title, {
+                'article_id': article_id, 'old_title': article['title'], 'new_title': title,
+                'category': category, 'source': source, 'is_published': is_published
+            }, username=session.get('admin_user', ''))
             return redirect(url_for('admin_articles'))
         return render_template('admin/edit.html', article=article, categories=ALL_CATEGORIES)
     finally:
         cur.close()
         conn.close()
 
-# ============ 后台管理 - 分类管理 ============
+@app.route('/admin/articles/<int:article_id>/delete', methods=['POST'])
+@login_required
+def admin_delete_article(article_id):
+    if not validate_csrf_token():
+        flash('安全验证失败，请刷新页面重试', 'error')
+        return redirect(url_for('admin_articles'))
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT title FROM article WHERE id=%s", (article_id,))
+        article = cur.fetchone()
+        title = article[0] if article else '未知'
+        cur.execute("DELETE FROM article WHERE id=%s", (article_id,))
+        conn.commit()
+        # 记录日志
+        log_admin_action('article_delete', title, {'article_id': article_id, 'title': title}, username=session.get('admin_user', ''))
+        return jsonify({'success': True})
+    finally:
+        cur.close()
+        conn.close()
+
+# ============ 后台管理 - 分类管理 - 带日志 ============
 @app.route('/admin/categories', methods=['GET', 'POST'])
 @login_required
 def admin_categories():
@@ -683,6 +872,8 @@ def admin_categories():
                         cur.execute("INSERT INTO categories (name, slug) VALUES (%s, %s)", (name, slug))
                         conn.commit()
                         flash(f'分类"{name}"已添加')
+                        # 记录日志
+                        log_admin_action('category_add', name, {'name': name, 'slug': slug}, username=session.get('admin_user', ''))
                     except Exception as e:
                         if 'Duplicate' in str(e):
                             flash('分类已存在')
@@ -691,9 +882,14 @@ def admin_categories():
             elif action == 'delete':
                 cat_id = request.form.get('cat_id')
                 if cat_id:
+                    cur.execute("SELECT name FROM categories WHERE id=%s", (cat_id,))
+                    cat = cur.fetchone()
+                    cat_name = cat[0] if cat else '未知'
                     cur.execute("DELETE FROM categories WHERE id=%s", (cat_id,))
                     conn.commit()
                     flash('分类已删除')
+                    # 记录日志
+                    log_admin_action('category_delete', cat_name, {'cat_id': cat_id, 'name': cat_name}, username=session.get('admin_user', ''))
             return redirect(url_for('admin_categories'))
         
         cur.execute("""SELECT c.id, c.name, c.slug, 
@@ -709,6 +905,46 @@ def admin_categories():
         cur.close()
         conn.close()
 
+# ============ 后台管理 - 操作日志 ============
+@app.route('/admin/action-log')
+@login_required
+def admin_action_log():
+    page = int(request.args.get('page', 1))
+    per_page = 50
+    action_filter = request.args.get('action', '')
+    search = request.args.get('search', '')
+    
+    conn = get_db()
+    cur = conn.cursor(DictCursor)
+    try:
+        where, params = "WHERE 1=1", []
+        if action_filter: where += " AND action=%s"; params.append(action_filter)
+        if search: where += " AND (username LIKE %s OR target LIKE %s OR detail LIKE %s)"; params.extend(['%' + search + '%'] * 3)
+        
+        cur.execute("SELECT COUNT(*) as total FROM admin_log " + where, params)
+        total = cur.fetchone()['total']
+        total_pages = (total + per_page - 1) // per_page
+        offset = (page - 1) * per_page
+        
+        cur.execute("SELECT * FROM admin_log " + where + " ORDER BY created_at DESC LIMIT %s OFFSET %s", params + [per_page, offset])
+        logs = cur.fetchall()
+        
+        # 格式化时间
+        for log in logs:
+            if log.get('created_at'):
+                log['created_at_str'] = log['created_at'].strftime('%Y-%m-%d %H:%M:%S')
+        
+        # 获取所有操作类型
+        cur.execute("SELECT DISTINCT action FROM admin_log ORDER BY action")
+        all_actions = [row['action'] for row in cur.fetchall()]
+        
+        return render_template('admin/action_log.html', logs=logs, page=page, 
+                             total_pages=total_pages, action_filter=action_filter, 
+                             search=search, all_actions=all_actions)
+    finally:
+        cur.close()
+        conn.close()
+
 # ============ 后台管理 - 采集日志 ============
 @app.route('/admin/cron-log')
 @login_required
@@ -718,7 +954,7 @@ def admin_cron_log():
     try:
         with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
             lines = f.readlines()
-            logs = [l.strip() for l in lines[-200:]]  # 最近200行
+            logs = [l.strip() for l in lines[-200:]]
     except:
         logs = ['日志文件不存在或无法读取']
     return render_template('admin/log.html', logs=logs)
@@ -730,11 +966,13 @@ def admin_trigger_cron():
     try:
         subprocess.Popen(['python3', '/var/www/dongshushu-paper/cron_collect.py'], 
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        # 记录日志
+        log_admin_action('cron_trigger', '内容采集', {}, username=session.get('admin_user', ''))
         return jsonify({'success': True, 'message': '采集任务已触发'})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
-# ============ 后台管理 - 站点设置 ============
+# ============ 后台管理 - 站点设置 - 带日志 ============
 @app.route('/admin/settings', methods=['GET', 'POST'])
 @login_required
 def admin_settings():
@@ -750,11 +988,18 @@ def admin_settings():
         settings_dict = {r['setting_key']: r['setting_value'] for r in rows}
         
         if request.method == 'POST':
+            changes = {}
             for key in ['site_name', 'site_description', 'keywords', 'contact_email', 'about_content']:
                 value = request.form.get(key, '')
+                old_value = settings_dict.get(key, '')
+                if old_value != value:
+                    changes[key] = {'old': old_value, 'new': value}
                 cur.execute("INSERT INTO settings (setting_key, setting_value) VALUES (%s, %s) "
                            "ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value)", (key, value))
             conn.commit()
+            # 记录日志
+            if changes:
+                log_admin_action('setting_update', '站点设置', {'changes': changes}, username=session.get('admin_user', ''))
             flash('设置已保存')
             return redirect(url_for('admin_settings'))
         
@@ -763,7 +1008,7 @@ def admin_settings():
         cur.close()
         conn.close()
 
-# ============ 后台管理 - 用户管理 ============
+# ============ 后台管理 - 用户管理 - 带日志 ============
 @app.route('/admin/users')
 @login_required
 def admin_users():
@@ -786,11 +1031,22 @@ def admin_users():
 @app.route('/admin/users/<int:user_id>/toggle-status', methods=['POST'])
 @login_required
 def admin_toggle_user_status(user_id):
+    if not validate_csrf_token():
+        if request.is_xhr:
+            return jsonify({'code': 403, 'message': '安全验证失败'})
+        flash('安全验证失败，请刷新页面重试', 'error')
+        return redirect(url_for('admin_users'))
     conn = get_db()
     cur = conn.cursor()
     try:
-        cur.execute("UPDATE users SET is_active = NOT is_active WHERE id=%s", (user_id,))
-        conn.commit()
+        cur.execute("SELECT username, is_active FROM users WHERE id=%s", (user_id,))
+        user = cur.fetchone()
+        if user:
+            new_status = not user[1]
+            cur.execute("UPDATE users SET is_active = %s WHERE id=%s", (new_status, user_id))
+            conn.commit()
+            # 记录日志
+            log_admin_action('user_toggle', user[0], {'user_id': user_id, 'username': user[0], 'new_status': '启用' if new_status else '禁用'}, username=session.get('admin_user', ''))
         return jsonify({'success': True})
     finally:
         cur.close()
@@ -799,13 +1055,20 @@ def admin_toggle_user_status(user_id):
 @app.route('/admin/users/<int:user_id>/delete', methods=['POST'])
 @login_required
 def admin_delete_user(user_id):
+    if not validate_csrf_token():
+        flash('安全验证失败，请刷新页面重试', 'error')
+        return redirect(url_for('admin_users'))
     conn = get_db()
     cur = conn.cursor()
     try:
-        # 同时删除用户收藏记录
+        cur.execute("SELECT username FROM users WHERE id=%s", (user_id,))
+        user = cur.fetchone()
+        username = user[0] if user else '未知'
         cur.execute("DELETE FROM favorites WHERE user_id=%s", (user_id,))
         cur.execute("DELETE FROM users WHERE id=%s", (user_id,))
         conn.commit()
+        # 记录日志
+        log_admin_action('user_delete', username, {'user_id': user_id, 'username': username}, username=session.get('admin_user', ''))
         return jsonify({'success': True})
     finally:
         cur.close()
@@ -821,43 +1084,35 @@ def api_stats_realtime():
         today = datetime.now().strftime('%Y-%m-%d')
         yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
         
-        # 实时在线（最近5分钟有访问的session）
         cur.execute("""SELECT COUNT(DISTINCT session_id) as online FROM page_view 
                       WHERE created_at > DATE_SUB(NOW(), INTERVAL 5 MINUTE)""")
         online = cur.fetchone()['online'] or 0
         
-        # 今日统计
         cur.execute("""SELECT COALESCE(SUM(pv), 0) as total_pv, COALESCE(SUM(uv), 0) as total_uv, 
                       COALESCE(AVG(avg_dwell_time), 0) as avg_dwell_time 
                       FROM daily_stats WHERE date=%s""", (today,))
         today_stats = cur.fetchone()
         
-        # 昨日统计
         cur.execute("""SELECT COALESCE(SUM(pv), 0) as total_pv, COALESCE(SUM(uv), 0) as total_uv 
                       FROM daily_stats WHERE date=%s""", (yesterday,))
         yesterday_stats = cur.fetchone()
         
-        # 7日趋势
         cur.execute("""SELECT date, SUM(pv) as total_pv, SUM(uv) as total_uv 
                       FROM daily_stats WHERE date >= DATE_SUB(%s, INTERVAL 6 DAY) GROUP BY date ORDER BY date""",
                     (today,))
         trend = cur.fetchall()
         
-        # 分类分布
         cur.execute("""SELECT category, COUNT(*) as c FROM article WHERE is_published=1 GROUP BY category""")
         category_dist = cur.fetchall()
         
-        # 热门页面
         cur.execute("""SELECT path, COUNT(*) as pv, COUNT(DISTINCT session_id) as uv 
                       FROM page_view WHERE DATE(created_at)=%s GROUP BY path ORDER BY pv DESC LIMIT 10""", (today,))
         top_pages = cur.fetchall()
         
-        # 热门文章
         cur.execute("""SELECT id, title, view_count FROM article WHERE is_published=1 
                       ORDER BY view_count DESC LIMIT 10""")
         hot_articles = cur.fetchall()
         
-        # 来源分布
         cur.execute("""SELECT source, COUNT(*) as c FROM article GROUP BY source ORDER BY c DESC LIMIT 10""")
         source_dist = cur.fetchall()
         
@@ -899,10 +1154,12 @@ def translate_text(text): return text
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)
 
-
-
-
 # ============ API - 服务器监控 ============
+@app.route('/admin/monitor')
+@login_required
+def admin_monitor():
+    return render_template('admin/monitor.html')
+
 @app.route('/api/server/stats')
 @login_required
 def server_stats():
@@ -913,7 +1170,6 @@ def server_stats():
         mem = psutil.virtual_memory()
         disk = psutil.disk_usage('/')
         
-        # 进程信息
         proc_stats = []
         for p in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent', 'create_time']):
             try:
@@ -938,7 +1194,6 @@ def server_stats():
             'processes': proc_stats[:10]
         })
     except ImportError:
-        # 无 psutil，使用 /proc 读取
         try:
             with open('/proc/loadavg', 'r') as f:
                 load = f.read().split()[:3]
@@ -965,7 +1220,6 @@ def server_stats():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
-
 # ============ 反馈提交 ============
 @app.route('/api/feedback', methods=['POST'])
 def submit_feedback():
@@ -977,7 +1231,6 @@ def submit_feedback():
         if not content or len(content.strip()) < 5:
             return jsonify({'success': False, 'message': '反馈内容不能少于5个字'})
         
-        # 记录反馈（实际可扩展为发送邮件）
         import logging
         logging.basicConfig(filename='/var/www/dongshushu-paper/feedback.log', level=logging.INFO)
         logging.info(f"反馈: {name} <{email}> - {content}")
