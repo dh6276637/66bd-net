@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-董蜀黍的报纸 - 新闻自动采集脚本 (v5 - 图片保留 + 汽车游戏分类)
-"""
-
 import requests
+import feedparser
+import json
+import time
+import logging
+from datetime import datetime
+from bs4 import BeautifulSoup
+from collections import defaultdict
+import hashlib
+import urllib.request
+import urllib.parse
+import re
 
-# ============ 文章正文提取函数 (新增) ============
+# ============ 文章正文提取函数 ============
 
 def extract_article_content(url, timeout=15):
     """从URL抓取文章正文内容，返回(text, html)"""
@@ -24,7 +31,7 @@ def extract_article_content(url, timeout=15):
         if 'charset' in response.headers.get('Content-Type', ''):
             encoding = response.headers['Content-Type'].split('charset=')[-1]
         elif not encoding or encoding == 'ISO-8859-1':
-            charset_match = re.search(r'charset=["']*([^"' >]+)', response.text[:2000])
+            charset_match = re.search(r'charset=["\']*([^"\' >]+)', response.text[:2000])
             if charset_match:
                 encoding = charset_match.group(1)
         
@@ -93,25 +100,10 @@ def get_hn_comments_summary(hn_item_id, timeout=10):
                                 comments.append(text[:500])
                     except:
                         continue
-                return '
-
-'.join(comments)
+                return '\n'.join(comments)
     except Exception as e:
         logging.warning("获取HN评论失败 %s: %s", hn_item_id, str(e)[:50])
     return ''
-
-import feedparser
-import json
-import time
-import logging
-from datetime import datetime
-from bs4 import BeautifulSoup
-from collections import defaultdict
-import hashlib
-import random
-import urllib.request
-import urllib.parse
-import re
 
 # ============ 图片处理函数 ============
 
@@ -139,7 +131,7 @@ def fix_relative_url(img_src, base_url):
         return urljoin(base_url, img_src)
 
 def process_html_with_images(html_content, source_url=''):
-    """处理HTML内容，保留img标签，转换相对路径为绝对路径，添加防盗链属性"""
+    """处理HTML内容，保留img标签，转换相对路径为绝对路径"""
     if not html_content:
         return ''
     
@@ -161,26 +153,12 @@ def process_html_with_images(html_content, source_url=''):
         if not img.get('src'):
             img.decompose()
     
-    for source in soup.find_all('source'):
-        srcset = source.get('srcset')
-        if srcset:
-            new_srcset = []
-            for part in srcset.split(','):
-                url = part.strip().split()[0]
-                fixed = fix_relative_url(url, source_url)
-                if len(part.strip().split()) > 1:
-                    new_srcset.append(fixed + ' ' + part.strip().split()[1])
-                else:
-                    new_srcset.append(fixed)
-            source['srcset'] = ', '.join(new_srcset)
-    
     return str(soup)
 
 def clean_html(html_content):
     """清理HTML标签，提取纯文本"""
     if not html_content:
         return ""
-    
     soup = BeautifulSoup(html_content, 'lxml')
     text = soup.get_text(separator=' ', strip=True)
     text = ' '.join(text.split())
@@ -233,7 +211,7 @@ def translate_to_chinese(text, max_retries=3):
         return text
     
     try:
-        url = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt=t&q={urllib.parse.quote(text[:5000])}"
+        url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-CN&dt=t&q=" + urllib.parse.quote(text[:5000])
         req = urllib.request.Request(url)
         req.add_header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')
         
@@ -247,7 +225,7 @@ def translate_to_chinese(text, max_retries=3):
                     translated_parts.append(item[0])
             return ''.join(translated_parts)
     except Exception as e:
-        logging.warning(f"翻译失败: {str(e)[:100]}")
+        logging.warning("翻译失败: %s", str(e)[:100])
     
     return text
 
@@ -334,13 +312,19 @@ RSS_SOURCES = {
     "超能网": {"url": "https://plink.anyfeeder.com/chuansongme", "category": "数码硬件", "min_content_length": 50},
     "快科技": {"url": "https://rss.mydrivers.com/Rss.aspx?Tid=1", "category": "数码硬件", "min_content_length": 50},
     
+    # ============ 社会热点 ============
+    "中新经纬": {"url": "https://www.chinanews.com.cn/rss/society.xml", "category": "社会热点", "min_content_length": 50},
+    "观察者网": {"url": "https://www.guancha.cn/rss", "category": "社会热点", "min_content_length": 50},
+    "新京报": {"url": "https://www.bjnews.com.cn/rss", "category": "社会热点", "min_content_length": 50},
+    
     # ============ 汽车 ============
-    "快科技-汽车": {"url": "https://rss.mydrivers.com/Rss.aspx?Tid=7", "category": "汽车", "min_content_length": 50},
     "车云网": {"url": "https://www.cheyun.com/rss", "category": "汽车", "min_content_length": 50},
+    "汽车之家": {"url": "https://www.autohome.com.cn/rss/news.xml", "category": "汽车", "min_content_length": 50},
+    "新浪汽车": {"url": "https://auto.sina.com.cn/rss/jiaodian.xml", "category": "汽车", "min_content_length": 50},
     
     # ============ 游戏 ============
-    "3DM游戏网": {"url": "https://www.3dmgame.com/rss/news", "category": "游戏", "min_content_length": 50},
-    "游民星空": {"url": "https://www.gamersky.com/rss/news", "category": "游戏", "min_content_length": 50},
+    "机核网": {"url": "https://www.gcores.com/rss", "category": "游戏", "min_content_length": 50},
+    "Steam新闻": {"url": "https://store.steampowered.com/feeds/news.xml", "category": "游戏", "min_content_length": 50},
     "TapTap": {"url": "https://www.taptap.com/feed/rss", "category": "游戏", "min_content_length": 50},
     "IGN中国": {"url": "https://cn.ign.com/rss/news", "category": "游戏", "min_content_length": 50},
 }
@@ -437,7 +421,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
 def is_forbidden_content(title, content=""):
     text = (title + " " + content).lower()
     for keyword in FORBIDDEN_KEYWORDS:
@@ -445,15 +428,14 @@ def is_forbidden_content(title, content=""):
             return True
     return False
 
-
 def refine_category(title, content, default_category):
     """根据关键词二次分类 - 优先级从高到低"""
     text = (title + " " + content).lower()
     
-    # 优先级顺序：游戏 > 汽车 > 安全 > AI > 开源 > 时政 > 社会 > 开发者 > 硬件 > 科技头条
+    # 优先级顺序：游戏 > 汽车 > 社会热点 > 安全 > AI > 开源 > 时政 > 开发者 > 硬件 > 科技头条
     priority_order = [
-        "游戏", "汽车", "安全攻防", "智能AI", "开源推荐",
-        "时政热点", "社会热点", "开发者生态", "数码硬件", "科技头条"
+        "游戏", "汽车", "社会热点", "安全攻防", "智能AI", "开源推荐",
+        "时政热点", "开发者生态", "数码硬件", "科技头条"
     ]
     
     for cat in priority_order:
@@ -466,7 +448,6 @@ def refine_category(title, content, default_category):
     
     return default_category
 
-
 def fetch_rss_source(source_name, config):
     articles = []
     
@@ -478,9 +459,7 @@ def fetch_rss_source(source_name, config):
         response.raise_for_status()
         
         feed = feedparser.parse(response.content)
-        logger.info(f"从 {source_name} 获取到 {len(feed.entries)} 条条目")
-        
-        source_url = config['url']
+        logger.info("从 %s 获取到 %d 条条目", source_name, len(feed.entries))
         
         for entry in feed.entries[:8]:
             try:
@@ -505,41 +484,30 @@ def fetch_rss_source(source_name, config):
                 need_fetch_article = 'hnrss.org' in config['url'] or len(content_text) < config['min_content_length']
                 
                 if need_fetch_article and original_url and not original_url.startswith('javascript:'):
-                    # 检查是否为HN内部链接
                     if 'news.ycombinator.com' not in original_url:
-                        time.sleep(1)  # 礼貌延迟
+                        time.sleep(1)
                         article_text, article_html = extract_article_content(original_url)
                         if len(article_text) > len(content_text):
                             content_text = article_text
                             content_html = article_html
                             logger.info("成功抓取原文: %s...", title[:30])
                         else:
-                            # 如果抓取失败且是HN，尝试获取评论
                             if 'hnrss.org' in config['url']:
-                                # 从guid中提取HN item id
                                 hn_guid = entry.get('guid', '')
                                 if 'news.ycombinator.com/item?id=' in hn_guid:
                                     item_id = hn_guid.split('id=')[-1]
                                     comments_text = get_hn_comments_summary(item_id)
                                     if comments_text:
-                                        content_text = '【HN用户评论摘要】
-
-' + comments_text + '
-
-原始链接: ' + original_url
-                                        logger.info("使用HN评论摘要: %s...", title[:30])
+                                        content_text = '【HN用户评论摘要】\n\n' + comments_text + '\n\n原始链接: ' + original_url
                 
                 if len(content_text) < config['min_content_length']:
                     logger.info("内容太短跳过: %s... (长度:%d)", title[:30], len(content_text))
-                    continue
-                    logger.info(f"内容太短跳过: {title[:30]}... (长度:{len(content_text)})")
                     continue
                 
                 if is_forbidden_content(title, content_text):
                     continue
                 
                 category = config.get('category', '科技')
-                # 对科技头条等大类进行二次分类
                 if category in ['科技头条', '科技']:
                     category = refine_category(title, content_text, '科技头条')
                 
@@ -569,14 +537,13 @@ def fetch_rss_source(source_name, config):
                 })
                 
             except Exception as e:
-                logger.warning(f"处理条目失败: {e}")
+                logger.warning("处理条目失败: %s", e)
                 continue
         
     except Exception as e:
-        logger.error(f"抓取 {source_name} 失败: {e}")
+        logger.error("抓取 %s 失败: %s", source_name, e)
     
     return articles
-
 
 def fetch_github_trending():
     articles = []
@@ -592,24 +559,23 @@ def fetch_github_trending():
         if response.status_code == 200:
             data = response.json()
             for repo in data.get('items', [])[:8]:
-                title = f"GitHub热门项目: {repo['name']}"
+                title = "GitHub热门项目: %s" % repo['name']
                 repo_url = repo.get('html_url', '')
                 stars = repo.get('stargazers_count', 0)
                 description = repo.get('description') or '暂无描述'
                 owner = repo.get('owner', {}).get('login', 'unknown')
                 
-                content = f"""项目 {repo['name']} 是近期热门的开源项目。
+                content = """项目 %s 是近期热门的开源项目。
 
-📊 项目信息：
-- 仓库地址：{repo_url}
-- Stars：{stars}
-- 作者：{owner}
-- 项目描述：{description}"""
+仓库地址：%s
+Stars：%d
+作者：%s
+项目描述：%s""" % (repo['name'], repo_url, stars, owner, description)
                 
                 readme_content = ""
                 try:
                     for branch in ['main', 'master']:
-                        readme_url = f"https://raw.githubusercontent.com/{owner}/{repo['name']}/{branch}/README.md"
+                        readme_url = "https://raw.githubusercontent.com/%s/%s/%s/README.md" % (owner, repo['name'], branch)
                         headers['User-Agent'] = 'Mozilla/5.0'
                         readme_resp = requests.get(readme_url, headers=headers, timeout=10)
                         if readme_resp.status_code == 200:
@@ -619,16 +585,15 @@ def fetch_github_trending():
                     pass
                 
                 if readme_content:
-                    content = f"""📦 GitHub项目：{repo['name']}
-🔗 仓库地址：{repo_url}
-⭐ Stars：{stars} | 👤 作者：{owner}
+                    content = """GitHub项目：%s
+仓库地址：%s
+Stars：%d | 作者：%s
 
-📝 项目描述：{description}
+项目描述：%s
 
-{'='*50}
-📖 README 内容：
-{'='*50}
-{readme_content}"""
+%s
+README 内容：
+%s""" % (repo['name'], repo_url, stars, owner, description, "="*50, readme_content)
                 
                 if not is_forbidden_content(title, content):
                     title_cn = translate_to_chinese(title)
@@ -653,19 +618,17 @@ def fetch_github_trending():
         
         if 'X-RateLimit-Remaining' in response.headers:
             remaining = response.headers.get('X-RateLimit-Remaining')
-            logger.info(f"GitHub API剩余请求: {remaining}")
+            logger.info("GitHub API剩余请求: %s", remaining)
             
     except Exception as e:
-        logger.error(f"抓取GitHub Trending失败: {e}")
+        logger.error("抓取GitHub Trending失败: %s", e)
     
     return articles
-
 
 def translate_article(title, content):
     title_cn = translate_to_chinese(title) if is_english_text(title) else title
     content_cn = translate_long_text(content) if is_english_text(content) else content
     return title_cn, content_cn
-
 
 def push_to_api(articles, paper_type="morning"):
     if not articles:
@@ -687,27 +650,26 @@ def push_to_api(articles, paper_type="morning"):
             
             if response.status_code in [200, 201]:
                 success_count += 1
-                logger.info(f"推送成功: {article['title'][:40]}...")
+                logger.info("推送成功: %s...", article['title'][:40])
             else:
-                logger.warning(f"推送失败 [{response.status_code}]: {article['title'][:40]}...")
+                logger.warning("推送失败 [%d]: %s...", response.status_code, article['title'][:40])
                 
         except requests.exceptions.ConnectionError:
             logger.error("无法连接到API服务")
         except Exception as e:
-            logger.error(f"推送异常: {e}")
+            logger.error("推送异常: %s", e)
         
         time.sleep(0.5)
     
     return success_count
 
-
 def collect_all(paper_type="morning"):
-    logger.info(f"=== 开始采集 [{paper_type}] ===")
+    logger.info("=== 开始采集 [%s] ===", paper_type)
     
     all_articles = []
     seen_ids = set()
     
-    logger.info(f"RSS源总数: {len(RSS_SOURCES)}")
+    logger.info("RSS源总数: %d", len(RSS_SOURCES))
     success_count = 0
     fail_count = 0
     
@@ -724,7 +686,7 @@ def collect_all(paper_type="morning"):
                 all_articles.append(article)
         time.sleep(0.5)
     
-    logger.info(f"成功采集源: {success_count}, 失败: {fail_count}")
+    logger.info("成功采集源: %d, 失败: %d", success_count, fail_count)
     
     logger.info("正在采集 GitHub Trending...")
     github_articles = fetch_github_trending()
@@ -733,7 +695,7 @@ def collect_all(paper_type="morning"):
             seen_ids.add(article['_id'])
             all_articles.append(article)
     
-    logger.info(f"共采集到 {len(all_articles)} 篇去重文章")
+    logger.info("共采集到 %d 篇去重文章", len(all_articles))
     
     category_stats = defaultdict(int)
     for article in all_articles:
@@ -741,13 +703,12 @@ def collect_all(paper_type="morning"):
     
     logger.info("各栏目文章数:")
     for cat, count in sorted(category_stats.items(), key=lambda x: -x[1]):
-        logger.info(f"  - {cat}: {count}篇")
+        logger.info("  - %s: %d篇", cat, count)
     
     push_count = push_to_api(all_articles, paper_type)
     
-    logger.info(f"=== 采集完成，成功推送 {push_count} 篇 ===")
+    logger.info("=== 采集完成，成功推送 %d 篇 ===", push_count)
     return push_count
-
 
 def main():
     import sys
@@ -762,15 +723,14 @@ def main():
             hour = datetime.now().hour
             paper_type = "evening" if hour >= 12 else "morning"
     
-    logger.info(f"新闻采集脚本启动 - 类型: {paper_type}")
+    logger.info("新闻采集脚本启动 - 类型: %s", paper_type)
     
     try:
         success = collect_all(paper_type)
         sys.exit(0 if success > 0 else 1)
     except Exception as e:
-        logger.error(f"采集过程异常: {e}")
+        logger.error("采集过程异常: %s", e)
         sys.exit(1)
-
 
 if __name__ == "__main__":
     main()
