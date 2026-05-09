@@ -5,6 +5,99 @@
 """
 
 import requests
+
+# ============ 文章正文提取函数 (新增) ============
+
+def extract_article_content(url, timeout=15):
+    """从URL抓取文章正文内容，返回(text, html)"""
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+        }
+        
+        response = requests.get(url, headers=headers, timeout=timeout, allow_redirects=True)
+        response.raise_for_status()
+        
+        encoding = response.encoding
+        if 'charset' in response.headers.get('Content-Type', ''):
+            encoding = response.headers['Content-Type'].split('charset=')[-1]
+        elif not encoding or encoding == 'ISO-8859-1':
+            charset_match = re.search(r'charset=["']*([^"' >]+)', response.text[:2000])
+            if charset_match:
+                encoding = charset_match.group(1)
+        
+        html = response.content.decode(encoding or 'utf-8', errors='replace')
+        soup = BeautifulSoup(html, 'lxml')
+        
+        for tag in soup(['script', 'style', 'noscript', 'iframe', 'nav', 'footer', 'header', 'aside']):
+            tag.decompose()
+        
+        article = soup.find('article')
+        if article:
+            text = article.get_text(separator='|SPLIT|', strip=True)
+            text = ' '.join(line for line in text.split('|SPLIT|') if line.strip())
+            return text[:5000], str(article)
+        
+        main = soup.find('main')
+        if main:
+            text = main.get_text(separator='|SPLIT|', strip=True)
+            text = ' '.join(line for line in text.split('|SPLIT|') if line.strip())
+            return text[:5000], str(main)
+        
+        max_text = ''
+        max_element = None
+        for tag in soup.find_all(['div', 'section']):
+            text = tag.get_text(strip=True)
+            if len(text) > len(max_text):
+                p_count = len(tag.find_all('p'))
+                if p_count >= 2:
+                    max_text = text
+                    max_element = tag
+        
+        if max_element and len(max_text) > 200:
+            text = max_element.get_text(separator='|SPLIT|', strip=True)
+            text = ' '.join(line for line in text.split('|SPLIT|') if line.strip())
+            return text[:5000], str(max_element)
+        
+        body = soup.find('body')
+        if body:
+            text = body.get_text(separator=' ', strip=True)
+            text = ' '.join(text.split())
+            return text[:5000], str(body)
+        
+        return '', ''
+        
+    except Exception as e:
+        logging.warning("抓取文章失败 %s: %s", url, str(e)[:100])
+        return '', ''
+
+
+def get_hn_comments_summary(hn_item_id, timeout=10):
+    """获取HN帖子的评论摘要"""
+    try:
+        hn_api_url = "https://hacker-news.firebaseio.com/v0/item/%s.json" % hn_item_id
+        response = requests.get(hn_api_url, timeout=timeout)
+        if response.status_code == 200:
+            data = response.json()
+            if data and 'kids' in data:
+                comments = []
+                for kid_id in data['kids'][:5]:
+                    try:
+                        comment_resp = requests.get("https://hacker-news.firebaseio.com/v0/item/%s.json" % kid_id, timeout=5)
+                        if comment_resp.status_code == 200:
+                            comment_data = comment_resp.json()
+                            if comment_data and comment_data.get('text'):
+                                text = BeautifulSoup(comment_data['text'], 'lxml').get_text()
+                                comments.append(text[:500])
+                    except:
+                        continue
+                return '\n\n'.join(comments)
+    except Exception as e:
+        logging.warning("获取HN评论失败 %s: %s", hn_item_id, str(e)[:50])
+    return ''
+
 import feedparser
 import json
 import time
@@ -397,6 +490,7 @@ def fetch_rss_source(source_name, config):
                 
                 original_url = entry.get('link', '') or ''
                 
+                # 优先从RSS获取摘要内容
                 raw_content = ''
                 if 'summary' in entry:
                     raw_content = entry.get('summary', '')
@@ -405,9 +499,37 @@ def fetch_rss_source(source_name, config):
                 
                 content_html, content_text = extract_content_with_images(raw_content, original_url)
                 
+                # 对于HN或内容太短的RSS，尝试抓取原始URL的正文
+                need_fetch_article = 'hnrss.org' in config['url'] or len(content_text) < config['min_content_length']
+                
+                if need_fetch_article and original_url and not original_url.startswith('javascript:'):
+                    # 检查是否为HN内部链接
+                    if 'news.ycombinator.com' not in original_url:
+                        time.sleep(1)  # 礼貌延迟
+                        article_text, article_html = extract_article_content(original_url)
+                        if len(article_text) > len(content_text):
+                            content_text = article_text
+                            content_html = article_html
+                            logger.info("成功抓取原文: %s...", title[:30])
+                        else:
+                            # 如果抓取失败且是HN，尝试获取评论
+                            if 'hnrss.org' in config['url']:
+                                # 从guid中提取HN item id
+                                hn_guid = entry.get('guid', '')
+                                if 'news.ycombinator.com/item?id=' in hn_guid:
+                                    item_id = hn_guid.split('id=')[-1]
+                                    comments_text = get_hn_comments_summary(item_id)
+                                    if comments_text:
+                                        content_text = '【HN用户评论摘要】
+
+' + comments_text + '
+
+原始链接: ' + original_url
+                                        logger.info("使用HN评论摘要: %s...", title[:30])
+                
                 if len(content_text) < config['min_content_length']:
-                    if 'hnrss.org' in config['url']:
-                        continue
+                    logger.info("内容太短跳过: %s... (长度:%d)", title[:30], len(content_text))
+                    continue
                     logger.info(f"内容太短跳过: {title[:30]}... (长度:{len(content_text)})")
                     continue
                 
