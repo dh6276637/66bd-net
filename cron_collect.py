@@ -36,14 +36,14 @@ def extract_article_content(url, timeout=15):
         
         article = soup.find('article')
         if article:
-            text = article.get_text(separator='|SPLIT|', strip=True)
-            text = ' '.join(line for line in text.split('|SPLIT|') if line.strip())
+            text = article.get_text(separator=' ', strip=True)
+            text = ' '.join(text.split())
             return text[:5000], str(article)
         
         main = soup.find('main')
         if main:
-            text = main.get_text(separator='|SPLIT|', strip=True)
-            text = ' '.join(line for line in text.split('|SPLIT|') if line.strip())
+            text = main.get_text(separator=' ', strip=True)
+            text = ' '.join(text.split())
             return text[:5000], str(main)
         
         max_text = ''
@@ -57,8 +57,8 @@ def extract_article_content(url, timeout=15):
                     max_element = tag
         
         if max_element and len(max_text) > 200:
-            text = max_element.get_text(separator='|SPLIT|', strip=True)
-            text = ' '.join(line for line in text.split('|SPLIT|') if line.strip())
+            text = max_element.get_text(separator=' ', strip=True)
+            text = ' '.join(text.split())
             return text[:5000], str(max_element)
         
         body = soup.find('body')
@@ -93,7 +93,9 @@ def get_hn_comments_summary(hn_item_id, timeout=10):
                                 comments.append(text[:500])
                     except:
                         continue
-                return '\n\n'.join(comments)
+                return '
+
+'.join(comments)
     except Exception as e:
         logging.warning("获取HN评论失败 %s: %s", hn_item_id, str(e)[:50])
     return ''

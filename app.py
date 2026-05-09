@@ -466,7 +466,7 @@ def api_v1_search():
         conn.close()
 
 # ========== 用户API ==========
-@app.route('/api/auth/register', methods=['POST'])
+@app.route('/api/auth/register', methods=['GET', 'POST'])
 def api_register():
     data = request.get_json() or {}
     username = (data.get('username', '') or '').strip()[:50]
@@ -489,7 +489,7 @@ def api_register():
         cur.close()
         conn.close()
 
-@app.route('/api/auth/login', methods=['POST'])
+@app.route('/api/auth/login', methods=['GET', 'POST'])
 def api_login():
     data = request.get_json() or {}
     username = (data.get('username', '') or '').strip()
@@ -508,7 +508,7 @@ def api_login():
         cur.close()
         conn.close()
 
-@app.route('/api/auth/logout', methods=['POST'])
+@app.route('/api/auth/logout', methods=['GET', 'POST'])
 def api_logout():
     session.pop('user_id', None)
     session.pop('username', None)
@@ -529,7 +529,7 @@ def api_me():
         cur.close()
         conn.close()
 
-@app.route('/api/favorites/toggle', methods=['POST'])
+@app.route('/api/favorites/toggle', methods=['GET', 'POST'])
 def api_favorites_toggle():
     user_id = session.get('user_id')
     if not user_id: return api_response(None, '请先登录', 401)
@@ -589,7 +589,7 @@ def api_messages():
 @app.route('/api/articles', methods=['GET', 'POST'])
 def api_articles(): return api_v1_articles()
 
-@app.route('/api/track', methods=['POST'])
+@app.route('/api/track', methods=['GET', 'POST'])
 def track_page_view():
     try:
         data = request.get_json() or {}
@@ -833,7 +833,7 @@ def admin_edit_article(article_id):
         cur.close()
         conn.close()
 
-@app.route('/admin/articles/<int:article_id>/delete', methods=['POST'])
+@app.route('/admin/articles/<int:article_id>/delete', methods=['GET', 'POST'])
 @login_required
 def admin_delete_article(article_id):
     if not validate_csrf_token():
@@ -959,7 +959,7 @@ def admin_cron_log():
         logs = ['日志文件不存在或无法读取']
     return render_template('admin/log.html', logs=logs)
 
-@app.route('/admin/cron/trigger', methods=['POST'])
+@app.route('/admin/cron/trigger', methods=['GET', 'POST'])
 @login_required
 def admin_trigger_cron():
     import subprocess
@@ -1028,7 +1028,7 @@ def admin_users():
         cur.close()
         conn.close()
 
-@app.route('/admin/users/<int:user_id>/toggle-status', methods=['POST'])
+@app.route('/admin/users/<int:user_id>/toggle-status', methods=['GET', 'POST'])
 @login_required
 def admin_toggle_user_status(user_id):
     if not validate_csrf_token():
@@ -1052,7 +1052,7 @@ def admin_toggle_user_status(user_id):
         cur.close()
         conn.close()
 
-@app.route('/admin/users/<int:user_id>/delete', methods=['POST'])
+@app.route('/admin/users/<int:user_id>/delete', methods=['GET', 'POST'])
 @login_required
 def admin_delete_user(user_id):
     if not validate_csrf_token():
@@ -1221,7 +1221,7 @@ def server_stats():
         return jsonify({'success': False, 'error': str(e)})
 
 # ============ 反馈提交 ============
-@app.route('/api/feedback', methods=['POST'])
+@app.route('/api/feedback', methods=['GET', 'POST'])
 def submit_feedback():
     try:
         name = request.form.get('name', '匿名用户')

@@ -37,7 +37,7 @@
             <div class="page-header">
                 <h1 class="page-title">采集日志</h1>
                 <div style="display:flex;gap:10px;">
-                    <a href="/admin/cron/trigger" class="btn btn-primary" onclick="return confirm('确认触发采集？')">🔄 触发采集</a>
+                    <button class="btn btn-primary" onclick="fetch('/admin/cron/trigger',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({csrf_token:document.querySelector('[name=csrf_token]')?.value||''})}).then(r=>r.json()).then(d=>alert(d.message||d.error||'已触发')).catch(e=>alert('触发失败'))">🔄 触发采集</button>
                     <button onclick="location.reload()" class="btn btn-outline">🔃 刷新</button>
                 </div>
             </div>
