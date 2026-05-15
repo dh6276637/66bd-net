@@ -38,97 +38,249 @@
 {% endblock %}
 
 {% block content %}
-<article class="article-detail" itemscope itemtype="https://schema.org/Article">
-    <header class="article-header" itemprop="articleSection">
-        <div class="article-category"><a href="/category/{{ article.slug }}" class="kicker" itemprop="articleSection">{{ article.category }}</a></div>
-        <h1 class="article-title" itemprop="headline">{{ article.title_cn or article.title }}</h1>
-        <div class="article-meta">
-            <span class="source-tag" style="background:{{ article.source_config.color }}20; color:{{ article.source_config.color }}" itemprop="author">{{ article.source_config.icon }} {{ article.source or '原创' }}</span>
-            <span itemprop="datePublished">{{ article.created_at.strftime('%Y-%m-%d') if article.created_at else '' }}</span>
-            <span>{{ article.view_count or 0 }} 阅读</span>
-            <span class="favorite-btn {% if is_favorited %}active{% endif %}" onclick="toggleFavorite({{ article.id }}, this)">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="{% if is_favorited %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
-                <span class="count">{{ favorite_count }}</span> 收藏
-            </span>
-        </div>
-    </header>
-    
-    <div class="article-content" itemprop="articleBody">
-        {% if content_cn_html %}
-        <div class="content-cn" itemprop="text">{{ content_cn_html|safe }}</div>
-        {% endif %}
-        {% if content_html and content_cn_html %}
-        <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-        {% endif %}
-        {% if content_html and not content_cn_html %}
-        <div class="content-en" itemprop="text">{{ content_html|safe }}</div>
-        {% endif %}
-        {% if not content_html and not content_cn_html %}
-        <div class="no-content-notice">
-            <p>📌 此条为快讯摘要，暂无详细正文</p>
-            {% if article.source == 'HackerNews' %}
-            <p class="source-link">来源：<a href="https://news.ycombinator.com/" target="_blank" rel="noopener">HackerNews</a></p>
-            {% elif article.source == 'GitHub Trending' %}
-            <p class="source-link">来源：<a href="https://github.com/trending" target="_blank" rel="noopener">GitHub Trending</a></p>
+<div class="main-wrapper">
+    <main class="article-detail-page">
+        <header class="article-detail-header">
+            <nav class="breadcrumb">
+                <a href="/">首页</a>
+                <span class="breadcrumb-sep">/</span>
+                <a href="/category/{{ article.slug }}">{{ article.category }}</a>
+                <span class="breadcrumb-sep">/</span>
+                <span class="current">正文</span>
+            </nav>
+            
+            <h1 class="article-detail-title">{{ article.title_cn or article.title }}</h1>
+            
+            <div class="article-detail-meta">
+                <span class="source-tag" style="background:{{ article.source_config.color }}18; color:{{ article.source_config.color }}">
+                    {{ article.source_config.icon }} {{ article.source or '原创' }}
+                </span>
+                <span>{{ article.created_at.strftime('%Y-%m-%d') if article.created_at else '' }}</span>
+                <span>{{ article.view_count or 0 }} 阅读</span>
+                <button class="favorite-btn {% if is_favorited %}active{% endif %}" onclick="toggleFavorite({{ article.id }}, this)">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="{% if is_favorited %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                    </svg>
+                    <span class="count">{{ favorite_count }}</span> 收藏
+                </button>
+            </div>
+        </header>
+        
+        <div class="article-content">
+            {% if content_cn_html %}
+            <div class="content-cn">{{ content_cn_html|safe }}</div>
+            {% endif %}
+            {% if content_html and content_cn_html %}
+            <div class="content-divider">
+                <span>英文原文</span>
+            </div>
+            {% endif %}
+            {% if content_html and not content_cn_html %}
+            <div class="content-en">{{ content_html|safe }}</div>
+            {% endif %}
+            {% if not content_html and not content_cn_html %}
+            <div class="no-content-notice">
+                <div class="notice-icon">📌</div>
+                <p>此条为快讯摘要，暂无详细正文</p>
+                {% if article.source == 'HackerNews' %}
+                <p class="source-link">来源：<a href="https://news.ycombinator.com/" target="_blank" rel="noopener">HackerNews</a></p>
+                {% elif article.source == 'GitHub Trending' %}
+                <p class="source-link">来源：<a href="https://github.com/trending" target="_blank" rel="noopener">GitHub Trending</a></p>
+                {% endif %}
+            </div>
             {% endif %}
         </div>
-        {% endif %}
-    </div>
 
-    {% if article.url %}
-    <div class="source-project-link">
-        <div class="link-box">
-            <span class="link-icon">🔗</span>
-            {% if 'github.com' in article.url %}
-            <span>📦 源项目：</span>
-            <a href="{{ article.url }}" target="_blank" rel="noopener" class="gh-link-btn">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"></path></svg>
-                查看 GitHub 仓库
-            </a>
-            {% else %}
-            <a href="{{ article.url }}" target="_blank" rel="noopener" class="ext-link-btn">
-                🌐 查看原文
-            </a>
-            {% endif %}
+        {% if article.url %}
+        <div class="source-project-link">
+            <div class="link-box">
+                <div class="link-icon">
+                    {% if 'github.com' in article.url %}📦{% else %}🔗{% endif %}
+                </div>
+                <div class="link-content">
+                    <span style="font-weight: 500;">原文链接</span>
+                    {% if 'github.com' in article.url %}
+                    <a href="{{ article.url }}" target="_blank" rel="noopener" class="gh-link-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"></path></svg>
+                        查看 GitHub 仓库
+                    </a>
+                    {% else %}
+                    <a href="{{ article.url }}" target="_blank" rel="noopener" class="ext-link-btn">
+                        🌐 查看原文
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
         </div>
-    </div>
-    {% endif %}
-</article>
+        {% endif %}
+    </main>
+</div>
 
 <style>
-.article-detail { max-width: 720px; margin: 0 auto; }
-.article-header { margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
-.article-title { font-size: 1.5em; margin: 8px 0; line-height: 1.5; font-weight: 700; }
-.article-meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 0.85em; color: var(--text-secondary); }
-.article-content { line-height: 1.8; color: var(--text-primary); font-size: 1rem; }
-.article-content p { margin: 1em 0; }
-.article-content img { max-width: 100%; height: auto; border-radius: 8px; margin: 16px 0; }
-.article-content a { color: var(--accent); text-decoration: none; }
-.article-content a:hover { text-decoration: underline; }
-.article-content pre { background: var(--bg-secondary); padding: 16px; border-radius: 8px; overflow-x: auto; margin: 16px 0; }
-.article-content code { font-family: 'Fira Code', 'Consolas', monospace; font-size: 0.9em; }
+.article-detail-page {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 40px 48px;
+    max-width: 800px;
+    margin: 0 auto;
+}
+.article-detail-header {
+    margin-bottom: 32px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+}
+.breadcrumb {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.breadcrumb a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+.breadcrumb a:hover { color: var(--accent-hover); text-decoration: underline; }
+.breadcrumb-sep { color: var(--border); }
+.breadcrumb .current { color: var(--text-secondary); }
+.article-detail-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1.4;
+    margin: 12px 0 20px;
+    color: var(--text-primary);
+}
+.article-detail-meta {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+.article-content {
+    font-size: 1.05rem;
+    line-height: 1.9;
+    color: var(--text-primary);
+}
+.article-content p { margin-bottom: 1.2em; }
+.article-content img { max-width: 100%; height: auto; border-radius: var(--radius-sm); margin: 24px 0; box-shadow: var(--shadow-md); }
+.article-content a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; transition: all 0.15s; }
+.article-content a:hover { border-bottom-color: var(--accent); text-decoration: none; }
+.article-content pre {
+    background: var(--bg-secondary);
+    padding: 20px;
+    border-radius: var(--radius-sm);
+    overflow-x: auto;
+    margin: 24px 0;
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+.article-content code {
+    font-family: 'Fira Code', 'SF Mono', Consolas, monospace;
+    font-size: 0.9em;
+    background: var(--bg-secondary);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
 .article-content pre code { background: none; padding: 0; }
-.source-project-link { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--border); }
-.link-box { display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--bg-secondary); border-radius: 12px; }
-.link-icon { font-size: 1.2em; }
-.ext-link-btn, .gh-link-btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: all 0.2s; }
-.ext-link-btn { background: var(--accent); color: white; }
-.gh-link-btn { background: #24292e; color: white; }
-.ext-link-btn:hover, .gh-link-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-.no-content-notice { text-align: center; padding: 40px 20px; color: var(--text-secondary); }
-.no-content-notice p { margin: 8px 0; }
+.gh-link {
+    background: var(--bg-secondary);
+    padding: 16px 20px;
+    margin: 20px 0;
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.content-divider {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 40px 0;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+.content-divider::before,
+.content-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+}
+.source-project-link {
+    margin-top: 48px;
+    padding-top: 28px;
+    border-top: 1px solid var(--border);
+}
+.link-box {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 24px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius);
+}
+.link-icon { font-size: 1.5rem; }
+.link-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+.ext-link-btn, .gh-link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+.ext-link-btn { background: var(--accent); color: #fff; }
+.gh-link-btn { background: #24292e; color: #fff; }
+.ext-link-btn:hover, .gh-link-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.no-content-notice {
+    text-align: center;
+    padding: 60px 30px;
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
+    border-radius: var(--radius);
+}
+.notice-icon { font-size: 2.5rem; margin-bottom: 16px; }
+.no-content-notice p { margin: 10px 0; font-size: 1rem; }
 .source-link { font-size: 0.9em; }
-.favorite-btn { cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
-.favorite-btn.active { color: #e74c3c; }
+.favorite-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    padding: 8px 16px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    background: transparent;
+    transition: all 0.2s;
+    font-size: 0.9rem;
+}
+.favorite-btn:hover { border-color: #ef4444; color: #ef4444; }
+.favorite-btn.active { background: #fef2f2; border-color: #ef4444; color: #ef4444; }
+
 @media (max-width: 768px) {
-    .article-title { font-size: 1.3em; }
-    .article-meta { font-size: 0.8em; }
+    .article-detail-page { padding: 24px 20px; }
+    .article-detail-title { font-size: 1.35rem; }
+    .article-detail-meta { font-size: 0.8rem; gap: 12px; }
+    .link-content { flex-direction: column; align-items: flex-start; }
+    .ext-link-btn, .gh-link-btn { width: 100%; justify-content: center; }
 }
 </style>
 
 <script>
-document.querySelectorAll('.copy-link').forEach(btn => {
-    btn.addEventListener('click', async () => {
+document.querySelectorAll('.copy-link').forEach(function(btn) {
+    btn.addEventListener('click', async function() {
         try {
             await navigator.clipboard.writeText(window.location.href);
             alert('链接已复制');
