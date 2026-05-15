@@ -14,6 +14,9 @@ import json
 import secrets
 import html as html_module
 import os
+import subprocess
+import requests
+import threading
 
 app = Flask(__name__)
 # 使用强随机密钥
@@ -1160,10 +1163,162 @@ if __name__ == '__main__':
 def admin_monitor():
     return render_template('admin/monitor.html')
 
+# ============ GitHub 自动更新功能 ============
+import time
+
+# 更新检查缓存
+_update_cache = {
+    'last_checked': None,
+    'latest_commit': None,
+    'current_commit': None,
+    'has_update': False
+}
+_update_lock = threading.Lock()
+
+def get_current_commit():
+    """获取当前本地 commit hash"""
+    try:
+        result = subprocess.check_output(
+            ['git', 'rev-parse', 'HEAD'],
+            cwd='/workspace/66bd-net',
+            text=True
+        ).strip()
+        return result
+    except Exception:
+        return None
+
+def get_latest_github_commit():
+    """获取 GitHub 最新 commit hash"""
+    try:
+        repo_owner = 'dh6276637'
+        repo_name = '66bd-net'
+        branch = 'master'
+        url = f'https://api.github.com/repos/{repo_owner}/{repo_name}/commits/{branch}'
+        
+        # 使用 GitHub API 获取最新提交
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                'sha': data['sha'],
+                'message': data['commit']['message'],
+                'date': data['commit']['author']['date'],
+                'author': data['commit']['author']['name']
+            }
+    except Exception:
+        pass
+    return None
+
+def check_for_updates():
+    """检查是否有更新，带缓存机制"""
+    with _update_lock:
+        now = datetime.now()
+        
+        # 检查缓存是否在5分钟内有效
+        if _update_cache['last_checked'] and \
+           (now - _update_cache['last_checked']) < timedelta(minutes=5):
+            return {
+                'has_update': _update_cache['has_update'],
+                'current_commit': _update_cache['current_commit'],
+                'latest_commit': _update_cache['latest_commit'],
+                'from_cache': True
+            }
+        
+        # 获取当前和远程 commit
+        current = get_current_commit()
+        latest = get_latest_github_commit()
+        
+        has_update = False
+        if current and latest and current != latest['sha']:
+            has_update = True
+        
+        # 更新缓存
+        _update_cache['last_checked'] = now
+        _update_cache['current_commit'] = current
+        _update_cache['latest_commit'] = latest
+        _update_cache['has_update'] = has_update
+        
+        return {
+            'has_update': has_update,
+            'current_commit': current,
+            'latest_commit': latest,
+            'from_cache': False
+        }
+
+@app.route('/api/update/check', methods=['GET'])
+def api_update_check():
+    """检查更新的 API"""
+    try:
+        result = check_for_updates()
+        return api_response(result)
+    except Exception as e:
+        return api_response(None, f'检查更新失败: {str(e)}', 500)
+
+@app.route('/api/update/perform', methods=['POST'])
+@login_required
+def api_update_perform():
+    """执行更新的 API（需要管理员权限）"""
+    try:
+        # 记录操作日志
+        username = session.get('admin_user', '')
+        log_admin_action('update_trigger', 'GitHub更新', {}, username=username)
+        
+        # 执行 git pull
+        result = subprocess.check_output(
+            ['git', 'pull', 'origin', 'master'],
+            cwd='/workspace/66bd-net',
+            text=True,
+            stderr=subprocess.STDOUT
+        )
+        
+        # 清除更新缓存
+        with _update_lock:
+            _update_cache['last_checked'] = None
+            _update_cache['has_update'] = False
+        
+        return api_response({
+            'output': result,
+            'success': True
+        }, '更新成功！建议重启应用以加载更新')
+        
+    except subprocess.CalledProcessError as e:
+        return api_response(None, f'更新失败: {e.output}', 500)
+    except Exception as e:
+        return api_response(None, f'更新失败: {str(e)}', 500)
+
+@app.route('/api/update/check-public')
+def api_update_check_public():
+    """公开的更新检查API（用于前端提示）"""
+    try:
+        # 检查是否是管理员
+        is_admin = session.get('admin_logged_in', False)
+        if not is_admin:
+            return api_response({'has_update': False}, 'No admin access')
+        
+        result = check_for_updates()
+        # 只返回是否有更新，不返回详细信息
+        return api_response({
+            'has_update': result.get('has_update', False)
+        })
+    except Exception as e:
+        return api_response({'has_update': False}, str(e), 500)
+
+@app.route('/admin/update')
+@login_required
+def admin_update():
+    """更新管理页面"""
+    check_result = check_for_updates()
+    return render_template('admin/update.html', update_info=check_result)
+
+# ============ API - 服务器监控 ============
+@app.route('/admin/monitor')
+@login_required
+def admin_monitor():
+    return render_template('admin/monitor.html')
+
 @app.route('/api/server/stats')
 @login_required
 def server_stats():
-    import subprocess
     try:
         import psutil
         cpu_percent = psutil.cpu_percent(interval=1)

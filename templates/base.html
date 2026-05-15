@@ -28,7 +28,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/wired-style.css?v=5">
+    <link rel="stylesheet" href="/static/css/wired-style.css?v=6">
     
     {% block structured_data %}
     <script type="application/ld+json">
@@ -97,6 +97,11 @@
             {% endif %}
         </div>
     </nav>
+
+    <!-- 更新提示横幅（仅对管理员显示） -->
+    <div id="update-banner" style="display: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-align: center; padding: 10px; font-size: 14px;">
+        🔄 发现新版本！<a href="/admin/update" style="color: white; text-decoration: underline; margin-left: 10px; font-weight: 600;">立即更新 &rarr;</a>
+    </div>
 
     {% block category_bar %}
     {% if show_category_bar != False %}
@@ -188,6 +193,23 @@
     </div>
 
     <script>
+    // 检查更新提示
+    async function checkUpdateBanner() {
+        try {
+            const response = await fetch('/api/update/check-public');
+            const data = await response.json();
+            if (data.code === 200 && data.data && data.data.has_update) {
+                document.getElementById('update-banner').style.display = 'block';
+            }
+        } catch (e) {
+            // 静默失败
+        }
+    }
+    // 页面加载后检查更新
+    document.addEventListener('DOMContentLoaded', function() {
+        checkUpdateBanner();
+    });
+    
     function showLogin(){document.getElementById('loginModal').classList.add('show')}
     function showRegister(){document.getElementById('registerModal').classList.add('show')}
     function closeModal(id){document.getElementById(id).classList.remove('show')}
