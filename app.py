@@ -698,10 +698,6 @@ def admin_login():
             flash('登录失败次数过多，请稍后再试', 'error')
         return render_template('admin/login.html')
     
-    # GET请求时重置CSRF token
-    if request.method == 'GET':
-        session.pop('csrf_token', None)
-    
     if request.method == 'POST':
         # 验证CSRF token
         if not validate_csrf_token():
