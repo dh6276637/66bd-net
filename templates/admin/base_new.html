@@ -2,7 +2,7 @@
 <html lang="zh-CN" data-theme="light">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>{% block title %}66必读管理后台{% endblock %}</title>
     <link rel="stylesheet" href="/static/css/admin_new.css">
     <style>
@@ -31,11 +31,42 @@
             border: 1px solid var(--border);
             margin: 0 4px;
         }
+        
+        /* 移动端额外优化 */
+        @media (max-width: 768px) {
+            .admin-sidebar {
+                position: fixed;
+                left: 0;
+                top: 0;
+                height: 100vh;
+                z-index: 1000;
+                transition: transform 0.3s ease;
+            }
+            
+            .sidebar-overlay {
+                transition: opacity 0.3s ease;
+            }
+            
+            .admin-header {
+                padding-left: 64px !important;
+                padding-right: 16px !important;
+            }
+            
+            .page-title {
+                font-size: 17px !important;
+            }
+            
+            .header-actions .btn {
+                padding: 8px 12px !important;
+            }
+        }
     </style>
 </head>
 <body>
     <!-- 移动端菜单按钮 -->
-    <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+    <button class="mobile-menu-btn" onclick="toggleSidebar()" aria-label="打开菜单">
+        <span style="font-size: 24px; line-height: 1;">☰</span>
+    </button>
 
     <!-- 侧边栏遮罩 -->
     <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
@@ -170,31 +201,41 @@
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.querySelector('.sidebar-overlay');
+            
             sidebar.classList.toggle('open');
             overlay.classList.toggle('active');
+            
+            // 防止背景滚动
+            document.body.style.overflow = sidebar.classList.contains('open') ? 'hidden' : '';
         }
 
         function handleResize() {
             if (window.innerWidth > 768) {
-                document.getElementById('sidebar').classList.remove('open');
-                document.querySelector('.sidebar-overlay').classList.remove('active');
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.querySelector('.sidebar-overlay');
+                
+                sidebar.classList.remove('open');
+                overlay.classList.remove('active');
+                document.body.style.overflow = '';
             }
         }
 
+        // 点击导航项后自动关闭侧边栏（移动端）
+        document.addEventListener('DOMContentLoaded', function() {
+            const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
+            navItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    if (window.innerWidth <= 768) {
+                        setTimeout(() => toggleSidebar(), 100);
+                    }
+                });
+            });
+        });
+
         window.addEventListener('resize', handleResize);
         document.addEventListener('DOMContentLoaded', handleResize);
-
-        {% block page_script %}{% endblock %}
     </script>
 
-    <!-- 功能模块脚本 -->
-    <script src="/static/js/admin_features.js"></script>
-
-    <!-- 快捷键提示 -->
-    <div class="keyboard-hint">
-        按 <kbd>?</kbd> 查看快捷键
-    </div>
-
-    {% block extra_scripts %}{% endblock %}
+    {% block scripts %}{% endblock %}
 </body>
 </html>

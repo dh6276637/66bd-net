@@ -1264,23 +1264,89 @@ def api_update_perform():
         username = session.get('admin_user', '')
         log_admin_action('update_trigger', 'GitHub更新', {}, username=username)
         
-        # 执行 git pull
-        result = subprocess.check_output(
-            ['git', 'pull', 'origin', 'master'],
+        # 获取请求参数
+        data = request.get_json() or {}
+        force = data.get('force', False)
+        
+        # 检查本地状态
+        status_result = subprocess.run(
+            ['git', 'status', '--porcelain'],
             cwd=PROJECT_ROOT,
             text=True,
-            stderr=subprocess.STDOUT
+            capture_output=True
         )
+        
+        has_local_changes = len(status_result.stdout.strip()) > 0
+        
+        # 如果有本地修改且没有强制更新，先尝试stash
+        if has_local_changes and not force:
+            try:
+                # 先尝试stash本地修改
+                stash_result = subprocess.check_output(
+                    ['git', 'stash', 'push', '-m', 'auto-stash-before-update'],
+                    cwd=PROJECT_ROOT,
+                    text=True,
+                    stderr=subprocess.STDOUT
+                )
+                stashed = True
+                stash_message = stash_result
+            except subprocess.CalledProcessError:
+                stashed = False
+                stash_message = None
+        else:
+            stashed = False
+            stash_message = None
+        
+        # 执行 git pull，使用 --rebase 避免合并冲突
+        try:
+            result = subprocess.check_output(
+                ['git', 'pull', '--rebase', 'origin', 'master'],
+                cwd=PROJECT_ROOT,
+                text=True,
+                stderr=subprocess.STDOUT
+            )
+            success = True
+            error_message = None
+        except subprocess.CalledProcessError as e:
+            result = e.output
+            success = False
+            error_message = e.output
+            
+            # 如果失败且有stash，尝试pop恢复
+            if stashed:
+                try:
+                    subprocess.run(
+                        ['git', 'stash', 'pop'],
+                        cwd=PROJECT_ROOT,
+                        text=True,
+                        capture_output=True
+                    )
+                except:
+                    pass
         
         # 清除更新缓存
         with _update_lock:
             _update_cache['last_checked'] = None
             _update_cache['has_update'] = False
         
+        # 构建响应信息
+        message_parts = []
+        if stashed:
+            message_parts.append('已临时保存本地修改')
+        if success:
+            message_parts.append('更新成功！建议重启应用以加载更新')
+            if stashed:
+                message_parts.append('本地修改已恢复，请手动处理可能的冲突')
+        else:
+            message_parts.append('更新过程中遇到问题，请检查输出详情')
+        
         return api_response({
             'output': result,
-            'success': True
-        }, '更新成功！建议重启应用以加载更新')
+            'success': success,
+            'has_local_changes': has_local_changes,
+            'stashed': stashed,
+            'stash_message': stash_message
+        }, '\n'.join(message_parts))
         
     except subprocess.CalledProcessError as e:
         return api_response(None, f'更新失败: {e.output}', 500)
