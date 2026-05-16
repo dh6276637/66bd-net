@@ -205,9 +205,28 @@
             // 静默失败
         }
     }
-    // 页面加载后检查更新
+    
+    // 检查登录状态
+    async function checkLoginStatus() {
+        try {
+            const response = await fetch('/api/auth/me');
+            const data = await response.json();
+            if (data.code === 200 && data.data && data.data.logged_in && data.data.user) {
+                // 已登录，更新UI
+                document.querySelectorAll('.user-login-link').forEach(el => {
+                    el.textContent = data.data.user.username || '用户';
+                    el.onclick = function() { return false; };
+                });
+            }
+        } catch (e) {
+            // 静默失败
+        }
+    }
+    
+    // 页面加载后检查
     document.addEventListener('DOMContentLoaded', function() {
         checkUpdateBanner();
+        checkLoginStatus();
     });
     
     function showLogin(){document.getElementById('loginModal').classList.add('show')}

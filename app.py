@@ -19,8 +19,9 @@ import requests
 import threading
 
 app = Flask(__name__)
-# 使用强随机密钥
-app.secret_key = os.environ.get('SECRET_KEY') or secrets.token_hex(32)
+# 使用固定密钥确保session持久化
+app.secret_key = os.environ.get('SECRET_KEY') or '66bd-net-2026-secret-key-keep-session-stable'
+app.config['SESSION_TYPE'] = 'filesystem'
 
 DB_CONFIG = {
     "host": os.environ.get('DB_HOST', 'localhost'),
@@ -481,13 +482,23 @@ def api_register():
     conn = get_db()
     cur = conn.cursor()
     try:
+        # 检查用户名是否已存在
+        cur.execute("SELECT id FROM users WHERE username=%s", (username,))
+        if cur.fetchone():
+            return api_response(None, '用户名已存在', 400)
+        # 检查邮箱是否已存在
+        cur.execute("SELECT id FROM users WHERE email=%s", (email,))
+        if cur.fetchone():
+            return api_response(None, '邮箱已被注册', 400)
+        
         password_hash = generate_password_hash(password)
         cur.execute("INSERT INTO users (username, email, password_hash, created_at) VALUES (%s, %s, %s, NOW())", (username, email, password_hash))
         conn.commit()
         user_id = cur.lastrowid
         session['user_id'] = user_id
         session['username'] = username
-        return api_response({'user_id': user_id, 'username': username}, '注册成功', 201)
+        session.permanent = True  # 设置session为持久化
+        return api_response({'user_id': user_id, 'username': username, 'success': True}, '注册成功', 201)
     finally:
         cur.close()
         conn.close()
@@ -506,7 +517,8 @@ def api_login():
         if not user or not check_password_hash(user['password_hash'], password): return api_response(None, '用户名或密码错误', 401)
         session['user_id'] = user['id']
         session['username'] = user['username']
-        return api_response({'user_id': user['id'], 'username': user['username']}, '登录成功')
+        session.permanent = True  # 设置session为持久化
+        return api_response({'user_id': user['id'], 'username': user['username'], 'success': True}, '登录成功')
     finally:
         cur.close()
         conn.close()
