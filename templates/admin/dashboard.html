@@ -4,7 +4,74 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>数据看板 - 66必读管理后台</title>
-    <link rel="stylesheet" href="/static/css/admin.css">
+    <link rel="stylesheet" href="/static/css/admin_new.css">
+
+    <style>
+        /* 移动端菜单按钮（如果模板没有） */
+        .mobile-menu-btn {
+            display: none;
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            z-index: 1001;
+            width: 44px;
+            height: 44px;
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-md);
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .mobile-menu-btn {
+                display: flex;
+            }
+
+            .admin-sidebar {
+                transform: translateX(-100%);
+            }
+
+            .admin-sidebar.open {
+                transform: translateX(0);
+            }
+
+            .admin-main {
+                margin-left: 0 !important;
+            }
+        }
+    </style>
+
+
+    <style>
+        .table-responsive {
+            overflow-x: auto;
+            margin: 0 -24px;
+            padding: 0 24px;
+        }
+
+        @media (max-width: 768px) {
+            .table-responsive {
+                margin: 0 -16px;
+                padding: 0 16px;
+            }
+        }
+    </style>
+
 </head>
 <body>
     <div class="admin-layout">
@@ -59,7 +126,7 @@
             </div>
             
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                <div class="card">
+                <div class="card" style="margin-bottom: 24px;">
                     <div class="card-header">
                         <span class="card-title">📊 分类统计</span>
                     </div>
@@ -71,7 +138,7 @@
                     {% endfor %}
                 </div>
                 
-                <div class="card">
+                <div class="card" style="margin-bottom: 24px;">
                     <div class="card-header">
                         <span class="card-title">📰 来源统计</span>
                     </div>
@@ -84,12 +151,13 @@
                 </div>
             </div>
             
-            <div class="card">
+            <div class="card" style="margin-bottom: 24px;">
                 <div class="card-header">
                     <span class="card-title">📝 最新文章</span>
                     <a href="/admin/articles" class="btn btn-sm btn-outline">查看更多</a>
                 </div>
-                <table>
+                <div class="table-responsive">
+            <table>
                     <thead><tr><th>标题</th><th>分类</th><th>来源</th><th>时间</th><th>阅读</th></tr></thead>
                     <tbody>
                     {% for article in recent_articles %}
@@ -103,8 +171,31 @@
                     {% endfor %}
                     </tbody>
                 </table>
+        </div>
             </div>
         </main>
     </div>
+
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.querySelector('.admin-sidebar');
+            const overlay = document.querySelector('.sidebar-overlay');
+            if (sidebar) sidebar.classList.toggle('open');
+            if (overlay) overlay.classList.toggle('active');
+        }
+
+        function handleResize() {
+            if (window.innerWidth > 768) {
+                const sidebar = document.querySelector('.admin-sidebar');
+                const overlay = document.querySelector('.sidebar-overlay');
+                if (sidebar) sidebar.classList.remove('open');
+                if (overlay) overlay.classList.remove('active');
+            }
+        }
+
+        window.addEventListener('resize', handleResize);
+        document.addEventListener('DOMContentLoaded', handleResize);
+    </script>
+
 </body>
 </html>

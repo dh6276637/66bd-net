@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据看板 - 66必读管理后台</title>
+    <link rel="stylesheet" href="/static/css/admin_new.css">
+    <style>
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 1024px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .category-list {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .category-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 0;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .category-item:last-child {
+            border-bottom: none;
+        }
+
+        .category-name {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .category-bar {
+            flex: 1;
+            height: 8px;
+            background: var(--bg-page);
+            border-radius: 4px;
+            margin: 0 16px;
+            overflow: hidden;
+        }
+
+        .category-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--primary-light) 100%);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .category-count {
+            font-weight: 600;
+            color: var(--primary);
+            min-width: 60px;
+            text-align: right;
+        }
+
+        .source-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        @media (max-width: 768px) {
+            .source-list {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .source-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: var(--bg-page);
+            border-radius: var(--radius);
+            transition: all var(--transition-fast);
+        }
+
+        .source-item:hover {
+            background: var(--bg-hover);
+            transform: translateX(4px);
+        }
+
+        .source-icon {
+            width: 36px;
+            height: 36px;
+            background: var(--primary-alpha-10);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .source-name {
+            flex: 1;
+            font-weight: 500;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .source-count {
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .quick-action-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            transition: all var(--transition);
+            cursor: pointer;
+        }
+
+        .quick-action-btn:hover {
+            border-color: var(--primary);
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
+        }
+
+        .quick-action-icon {
+            width: 44px;
+            height: 44px;
+            background: var(--primary-alpha-10);
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .quick-action-content {
+            flex: 1;
+        }
+
+        .quick-action-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 2px;
+        }
+
+        .quick-action-desc {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .recent-articles {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .article-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 14px 0;
+            border-bottom: 1px solid var(--border-light);
+            transition: all var(--transition-fast);
+        }
+
+        .article-item:last-child {
+            border-bottom: none;
+        }
+
+        .article-item:hover {
+            background: var(--bg-hover);
+            margin: 0 -24px;
+            padding: 14px 24px;
+        }
+
+        .article-title {
+            flex: 1;
+            font-weight: 500;
+            color: var(--text-primary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .article-title a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .article-title a:hover {
+            color: var(--primary);
+        }
+
+        .article-meta {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-left: 16px;
+        }
+
+        .article-time {
+            font-size: 12px;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        @media (max-width: 768px) {
+            .article-meta {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+            }
+
+            .article-time {
+                font-size: 11px;
+            }
+
+            .badge {
+                font-size: 11px;
+                padding: 2px 8px;
+            }
+        }
+
+        .chart-placeholder {
+            height: 300px;
+            background: var(--bg-page);
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 移动端菜单按钮 -->
+    <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+
+    <!-- 侧边栏遮罩 -->
+    <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <div class="admin-layout">
+        <!-- 侧边栏 -->
+        <aside class="admin-sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <div class="sidebar-logo-icon">📖</div>
+                    <span>66必读</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">主要内容</div>
+                    <a href="/admin/" class="nav-item active">
+                        <span class="nav-icon">📊</span>
+                        <span class="nav-text">数据看板</span>
+                    </a>
+                    <a href="/admin/articles" class="nav-item">
+                        <span class="nav-icon">📝</span>
+                        <span class="nav-text">文章管理</span>
+                    </a>
+                    <a href="/admin/articles/new" class="nav-item">
+                        <span class="nav-icon">➕</span>
+                        <span class="nav-text">发布文章</span>
+                    </a>
+                    <a href="/admin/categories" class="nav-item">
+                        <span class="nav-icon">📂</span>
+                        <span class="nav-text">分类管理</span>
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">数据监控</div>
+                    <a href="/admin/action-log" class="nav-item">
+                        <span class="nav-icon">📋</span>
+                        <span class="nav-text">操作日志</span>
+                    </a>
+                    <a href="/admin/cron-log" class="nav-item">
+                        <span class="nav-icon">📜</span>
+                        <span class="nav-text">采集日志</span>
+                    </a>
+                    <a href="/admin/update" class="nav-item">
+                        <span class="nav-icon">🔄</span>
+                        <span class="nav-text">在线更新</span>
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">系统设置</div>
+                    <a href="/admin/settings" class="nav-item">
+                        <span class="nav-icon">⚙️</span>
+                        <span class="nav-text">站点设置</span>
+                    </a>
+                    <a href="/admin/monitor" class="nav-item">
+                        <span class="nav-icon">📈</span>
+                        <span class="nav-text">服务器监控</span>
+                    </a>
+                    <a href="/admin/users" class="nav-item">
+                        <span class="nav-icon">👥</span>
+                        <span class="nav-text">用户管理</span>
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">快捷访问</div>
+                    <a href="/" class="nav-item" target="_blank">
+                        <span class="nav-icon">👀</span>
+                        <span class="nav-text">查看网站</span>
+                    </a>
+                    <a href="/admin/logout" class="nav-item">
+                        <span class="nav-icon">🚪</span>
+                        <span class="nav-text">退出登录</span>
+                    </a>
+                </div>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="sidebar-user">
+                    <div class="user-avatar">A</div>
+                    <div class="user-info">
+                        <div class="user-name">管理员</div>
+                        <div class="user-role">超级管理员</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="admin-main">
+            <header class="admin-header">
+                <div class="header-left">
+                    <h1 class="page-title">数据看板</h1>
+                </div>
+                <div class="header-right">
+                    <div class="header-actions">
+                        <button class="btn btn-primary" onclick="triggerCollect()">
+                            <span>🔄</span>
+                            <span>触发采集</span>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <div class="admin-content">
+                <!-- 统计卡片 -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <div class="stat-icon" style="background: var(--primary-alpha-10); color: var(--primary);">
+                                📰
+                            </div>
+                            <div class="stat-trend up">
+                                <span>📈</span>
+                                <span>活跃</span>
+                            </div>
+                        </div>
+                        <div class="stat-value">{{ stats.total }}</div>
+                        <div class="stat-label">文章总数</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <div class="stat-icon" style="background: var(--success-light); color: var(--success);">
+                                ✅
+                            </div>
+                            <div class="stat-trend up">
+                                <span>📈</span>
+                                <span>+12</span>
+                            </div>
+                        </div>
+                        <div class="stat-value">{{ stats.published }}</div>
+                        <div class="stat-label">已发布</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <div class="stat-icon" style="background: var(--warning-light); color: var(--warning);">
+                                📝
+                            </div>
+                        </div>
+                        <div class="stat-value">{{ stats.draft }}</div>
+                        <div class="stat-label">草稿</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <div class="stat-icon" style="background: var(--danger-light); color: var(--danger);">
+                                👁️
+                            </div>
+                            <div class="stat-trend up">
+                                <span>📈</span>
+                                <span>+8%</span>
+                            </div>
+                        </div>
+                        <div class="stat-value">{{ stats.views or 0 }}</div>
+                        <div class="stat-label">总阅读量</div>
+                    </div>
+                </div>
+
+                <!-- 快捷操作 -->
+                <div class="quick-actions">
+                    <button class="quick-action-btn" onclick="location.href='/admin/articles/new'">
+                        <div class="quick-action-icon">📝</div>
+                        <div class="quick-action-content">
+                            <div class="quick-action-title">发布文章</div>
+                            <div class="quick-action-desc">手动发布新文章</div>
+                        </div>
+                    </button>
+
+                    <button class="quick-action-btn" onclick="triggerCollect()">
+                        <div class="quick-action-icon">🔄</div>
+                        <div class="quick-action-content">
+                            <div class="quick-action-title">触发采集</div>
+                            <div class="quick-action-desc">立即采集最新内容</div>
+                        </div>
+                    </button>
+
+                    <button class="quick-action-btn" onclick="location.href='/admin/categories'">
+                        <div class="quick-action-icon">📂</div>
+                        <div class="quick-action-content">
+                            <div class="quick-action-title">分类管理</div>
+                            <div class="quick-action-desc">调整文章分类</div>
+                        </div>
+                    </button>
+
+                    <button class="quick-action-btn" onclick="location.href='/admin/update'">
+                        <div class="quick-action-icon">🚀</div>
+                        <div class="quick-action-content">
+                            <div class="quick-action-title">检查更新</div>
+                            <div class="quick-action-desc">查看系统更新</div>
+                        </div>
+                    </button>
+                </div>
+
+                <!-- 主要内容区 -->
+                <div class="dashboard-grid">
+                    <!-- 左侧大数据 -->
+                    <div class="card" style="margin-bottom: 24px;">
+                        <div class="card-header">
+                            <span class="card-title">
+                                <span>📊</span>
+                                <span>分类统计</span>
+                            </span>
+                            <a href="/admin/categories" class="btn btn-sm btn-secondary">管理分类</a>
+                        </div>
+                        <div class="card-body">
+                            <div class="category-list">
+                                {% for cat in category_stats[:8] %}
+                                <div class="category-item">
+                                    <span class="category-name">{{ cat.category }}</span>
+                                    <div class="category-bar">
+                                        <div class="category-bar-fill" style="width: {{ (cat.count / stats.total * 100) if stats.total > 0 else 0 }}%"></div>
+                                    </div>
+                                    <span class="category-count">{{ cat.count }} 篇</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 右侧小卡片 -->
+                    <div style="display: flex; flex-direction: column; gap: 24px;">
+                        <!-- 来源统计 -->
+                        <div class="card" style="margin-bottom: 24px;">
+                            <div class="card-header">
+                                <span class="card-title">
+                                    <span>📰</span>
+                                    <span>来源统计</span>
+                                </span>
+                            </div>
+                            <div class="card-body">
+                                <div class="source-list">
+                                    {% for source in source_stats[:6] %}
+                                    <div class="source-item">
+                                        <div class="source-icon">🔗</div>
+                                        <span class="source-name">{{ source.source or '未知来源' }}</span>
+                                        <span class="source-count">{{ source.count }}</span>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 快捷链接 -->
+                        <div class="card" style="margin-bottom: 24px;">
+                            <div class="card-header">
+                                <span class="card-title">
+                                    <span>⚡</span>
+                                    <span>快捷操作</span>
+                                </span>
+                            </div>
+                            <div class="card-body">
+                                <div style="display: flex; flex-direction: column; gap: 8px;">
+                                    <a href="/admin/articles?category=数码硬件" class="btn btn-sm btn-secondary btn-block">📱 查看数码硬件</a>
+                                    <a href="/admin/articles?category=汽车" class="btn btn-sm btn-secondary btn-block">🚗 查看汽车文章</a>
+                                    <a href="/admin/articles?category=智能AI" class="btn btn-sm btn-secondary btn-block">🤖 查看AI文章</a>
+                                    <a href="/admin/action-log" class="btn btn-sm btn-secondary btn-block">📋 查看操作日志</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 最新文章 -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <span class="card-title">
+                            <span>📝</span>
+                            <span>最新文章</span>
+                        </span>
+                        <a href="/admin/articles" class="btn btn-sm btn-primary">查看全部</a>
+                    </div>
+                    <div class="card-body" style="padding: 0;">
+                        <div class="recent-articles" style="padding: 0 24px;">
+                            {% if recent_articles %}
+                                {% for article in recent_articles[:10] %}
+                                <div class="article-item">
+                                    <div class="article-title">
+                                        <a href="/admin/articles/{{ article.id }}/edit">{{ article.title[:50] }}{% if article.title|length > 50 %}...{% endif %}</a>
+                                    </div>
+                                    <div class="article-meta">
+                                        <span class="badge badge-primary">{{ article.category }}</span>
+                                        <span class="article-time">{{ article.created_at.strftime('%m-%d %H:%M') if article.created_at else '-' }}</span>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="empty-state">
+                                    <div class="empty-state-icon">📭</div>
+                                    <div class="empty-state-title">暂无文章</div>
+                                    <div class="empty-state-text">点击上方按钮开始采集或发布文章</div>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // 移动端菜单切换
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.querySelector('.sidebar-overlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
+        }
+
+        // 触发采集
+        function triggerCollect() {
+            if (!confirm('确定要触发文章采集吗？')) return;
+
+            const btn = event.target.closest('button');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner" style="width:16px;height:16px;border-width:2px;"></span> 采集中...';
+            btn.disabled = true;
+
+            fetch('/admin/cron/trigger', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            })
+            .then(r => r.json())
+            .then(d => {
+                if (d.success) {
+                    alert('✅ 采集任务已触发！');
+                } else {
+                    alert('❌ 触发失败: ' + (d.error || '未知错误'));
+                }
+            })
+            .catch(e => {
+                alert('❌ 触发失败: ' + e.message);
+            })
+            .finally(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            });
+        }
+
+        // 响应式调整
+        function handleResize() {
+            if (window.innerWidth > 768) {
+                document.getElementById('sidebar').classList.remove('open');
+                document.querySelector('.sidebar-overlay').classList.remove('active');
+            }
+        }
+
+        window.addEventListener('resize', handleResize);
+        document.addEventListener('DOMContentLoaded', handleResize);
+    </script>
+</body>
+</html>
