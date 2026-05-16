@@ -3,276 +3,396 @@
 {% block title %}在线更新 - 66必读管理后台{% endblock %}
 
 {% block page_style %}
-.update-card {
-    margin-bottom: 20px;
+.update-section {
+    margin-bottom: 24px;
 }
-.update-status {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    padding: 20px;
-    border-radius: 12px;
-    flex-wrap: wrap;
-}
-.update-status.has-update {
+
+.update-status-card {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 16px;
+    padding: 24px;
     color: white;
 }
-.update-status.up-to-date {
+
+.update-status-card.no-update {
     background: var(--bg-secondary);
+    color: var(--text-primary);
     border: 1px solid var(--border);
 }
-.update-icon {
-    font-size: 48px;
-}
-.commit-info {
-    background: var(--bg-secondary);
-    padding: 15px;
-    border-radius: 8px;
-    font-family: 'SF Mono', monospace;
-    word-break: break-all;
-}
-.commit-hash {
-    font-family: 'SF Mono', monospace;
-    color: var(--primary);
-    background: var(--primary-alpha-10);
-    padding: 4px 8px;
-    border-radius: 4px;
+
+.status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
     display: inline-block;
+    margin-right: 8px;
 }
-.update-log {
+
+.status-dot.success { background: #10b981; }
+.status-dot.warning { background: #f59e0b; }
+.status-dot.info { background: #667eea; }
+
+.progress-container {
+    background: rgba(255,255,255,0.2);
+    border-radius: 8px;
+    height: 8px;
+    overflow: hidden;
+    margin-top: 12px;
+}
+
+.progress-bar {
+    height: 100%;
+    background: white;
+    border-radius: 8px;
+    transition: width 0.3s ease;
+}
+
+.log-output {
     background: #1e1e1e;
     color: #d4d4d4;
-    padding: 15px;
+    padding: 16px;
     border-radius: 8px;
     font-family: 'SF Mono', monospace;
     font-size: 13px;
-    white-space: pre-wrap;
     max-height: 300px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+}
+
+.backup-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+
+.commit-list {
+    max-height: 200px;
     overflow-y: auto;
 }
 
-/* 移动端优化 */
-@media (max-width: 768px) {
-    .update-status {
-        flex-direction: column;
-        text-align: center;
-        gap: 12px;
-    }
-    .update-status > div:last-child {
-        margin-left: 0 !important;
-        width: 100%;
-    }
-    .update-status .btn {
-        width: 100%;
-    }
-    .update-icon {
-        font-size: 40px;
-    }
-    .commit-info {
-        padding: 12px;
-    }
-    .commit-hash {
-        font-size: 12px;
-    }
+.commit-item {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.commit-item:last-child {
+    border-bottom: none;
 }
 {% endblock %}
 
-{% block page_title %}🔄 在线更新{% endblock %}
+{% block page_title %}🔄 在线更新系统{% endblock %}
 
 {% block header_actions %}
-<button class="btn btn-primary" onclick="checkUpdate()">🔍 检查更新</button>
+<button class="btn btn-outline" onclick="checkUpdates()">
+    <span>🔍</span> 检查更新
+</button>
 {% endblock %}
 
 {% block content %}
-<div class="card update-card">
-    <div class="card-header">
-        <span class="card-title">更新状态</span>
-    </div>
-    <div id="update-status-container">
-        {% if update_info.has_update %}
-        <div class="update-status has-update">
-            <div class="update-icon">🔄</div>
-            <div>
-                <h3 style="margin: 0 0 8px 0;">发现新版本！</h3>
-                <p style="margin: 0; opacity: 0.9;">GitHub 上有可用的更新</p>
+<div class="grid" style="grid-template-columns: 1fr 1fr; gap: 24px;">
+    <div>
+        <div class="card update-section">
+            <div class="card-header">
+                <span class="card-title">📊 更新状态</span>
             </div>
-            <div style="margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap;">
-                <button class="btn" style="background: white; color: #667eea; border: none;" onclick="performUpdate(false)">
-                    ⬇️ 立即更新
-                </button>
-                <button class="btn" style="background: rgba(255,255,255,0.2); color: white; border: none;" onclick="performUpdate(true)">
-                    ⚡ 强制更新
-                </button>
-            </div>
-        </div>
-        {% else %}
-        <div class="update-status up-to-date">
-            <div class="update-icon">✅</div>
-            <div>
-                <h3 style="margin: 0 0 8px 0; color: var(--text-primary);">已是最新版本</h3>
-                <p style="margin: 0; color: var(--text-muted);">当前代码与 GitHub 同步</p>
-            </div>
-        </div>
-        {% endif %}
-    </div>
-</div>
-
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;" class="hide-mobile">
-    <div class="card" style="margin-bottom: 24px;">
-        <div class="card-header">
-            <span class="card-title">📍 当前版本</span>
-        </div>
-        <div class="commit-info">
-            <p><strong>Commit:</strong> <span class="commit-hash">{{ update_info.current_commit[:10] if update_info.current_commit else '-' }}</span></p>
-            {% if update_info.from_cache %}
-            <p style="margin-top: 10px; color: var(--text-muted); font-size: 13px;">
-                <em>（5分钟内缓存结果，点击"检查更新"刷新）</em>
-            </p>
-            {% endif %}
-        </div>
-    </div>
-
-    <div class="card" style="margin-bottom: 24px;">
-        <div class="card-header">
-            <span class="card-title">🌐 GitHub 最新</span>
-        </div>
-        {% if update_info.latest_commit %}
-        <div class="commit-info">
-            <p><strong>Commit:</strong> <span class="commit-hash">{{ update_info.latest_commit.sha[:10] }}</span></p>
-            <p style="margin-top: 8px;"><strong>提交信息:</strong><br>{{ update_info.latest_commit.message }}</p>
-            <p style="margin-top: 8px;"><strong>作者:</strong> {{ update_info.latest_commit.author }}</p>
-            <p style="margin-top: 8px;"><strong>时间:</strong> {{ update_info.latest_commit.date }}</p>
-        </div>
-        {% else %}
-        <div class="commit-info">
-            <p style="color: var(--text-muted);">暂未获取到 GitHub 信息</p>
-        </div>
-        {% endif %}
-    </div>
-</div>
-
-<!-- 移动端版本信息 -->
-<div class="card show-mobile" style="margin-bottom: 24px;">
-    <div class="card-header">
-        <span class="card-title">📋 版本信息</span>
-    </div>
-    <div class="card-body">
-        <div style="margin-bottom: 16px;">
-            <p style="font-weight: 600; margin-bottom: 8px;">📍 当前版本</p>
-            <div class="commit-info">
-                <p><strong>Commit:</strong> <span class="commit-hash">{{ update_info.current_commit[:10] if update_info.current_commit else '-' }}</span></p>
+            
+            <div class="card-body">
+                <div id="updateStatusContainer">
+                    <div class="update-status-card no-update" id="statusCard">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div>
+                                <h3 style="margin: 0 0 8px 0;">检查中...</h3>
+                                <p style="margin: 0; opacity: 0.8;" id="statusMessage">正在检查更新...</p>
+                            </div>
+                            <div style="font-size: 48px;">⏳</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap;">
+                    <button class="btn" id="updateBtn" onclick="performUpdate(false)" disabled style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
+                        <span>⬇️</span> 安全更新
+                    </button>
+                    <button class="btn" id="forceUpdateBtn" onclick="performUpdate(true)" disabled style="background: var(--danger); color: white; border: none;">
+                        <span>⚠️</span> 强制更新
+                    </button>
+                </div>
             </div>
         </div>
-        <div>
-            <p style="font-weight: 600; margin-bottom: 8px;">🌐 GitHub 最新</p>
-            {% if update_info.latest_commit %}
-            <div class="commit-info">
-                <p><strong>Commit:</strong> <span class="commit-hash">{{ update_info.latest_commit.sha[:10] }}</span></p>
-                <p style="margin-top: 8px;"><strong>提交信息:</strong><br>{{ update_info.latest_commit.message }}</p>
+        
+        <div class="card update-section">
+            <div class="card-header">
+                <span class="card-title">💾 备份管理</span>
             </div>
-            {% else %}
-            <div class="commit-info">
-                <p style="color: var(--text-muted);">暂未获取到 GitHub 信息</p>
+            <div class="card-body" id="backupList">
+                <p style="color: var(--text-muted);">加载备份列表中...</p>
             </div>
-            {% endif %}
         </div>
     </div>
-</div>
-
-<div class="card" id="update-log-card" style="display: none;">
-    <div class="card-header">
-        <span class="card-title">📝 更新日志</span>
-    </div>
-    <div class="card-body">
-        <div class="update-log" id="update-log">等待更新...</div>
-    </div>
-</div>
-
-<div class="card" style="margin-bottom: 24px;">
-    <div class="card-header">
-        <span class="card-title">📋 说明</span>
-    </div>
-    <div class="card-body">
-        <ul style="color: var(--text-secondary); line-height: 2;">
-            <li>系统会自动检查 GitHub 上的最新代码，5分钟内缓存检查结果</li>
-            <li><strong>立即更新</strong>：安全更新模式，会自动保存并恢复本地修改</li>
-            <li><strong>强制更新</strong>：直接覆盖本地修改（谨慎使用）</li>
-            <li>更新后建议重启应用以生效（如使用 Gunicorn/Systemd 部署）</li>
-            <li>更新操作会记录在操作日志中</li>
-        </ul>
+    
+    <div>
+        <div class="card update-section">
+            <div class="card-header">
+                <span class="card-title">📝 待更新内容</span>
+            </div>
+            <div class="card-body" id="commitsList">
+                <p style="color: var(--text-muted);">检查更新中...</p>
+            </div>
+        </div>
+        
+        <div class="card update-section" id="updateLogCard" style="display: none;">
+            <div class="card-header">
+                <span class="card-title">🔄 更新日志</span>
+            </div>
+            <div class="card-body">
+                <div class="log-output" id="updateLog">等待更新...</div>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-function checkUpdate() {
+let updateStatus = {
+    hasUpdate: false,
+    checking: false,
+    updating: false
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    checkUpdates();
+    loadBackups();
+    
+    setInterval(checkUpdateStatus, 2000);
+});
+
+async function checkUpdates() {
+    if (updateStatus.checking) return;
+    
+    updateStatus.checking = true;
+    
     try {
-        location.reload();
+        const commitsRes = await fetch('/api/update/remote-changes');
+        const commitsData = await commitsRes.json();
+        
+        if (commitsData.code === 200) {
+            renderCommits(commitsData.data);
+        }
+        
+        checkBasicUpdate();
     } catch (e) {
-        alert('检查更新失败: ' + e.message);
+        console.error('检查更新失败:', e);
+    } finally {
+        updateStatus.checking = false;
+    }
+}
+
+function checkBasicUpdate() {
+    updateStatus.hasUpdate = {{ update_info.has_update|lower }};
+    renderStatus();
+}
+
+function renderStatus() {
+    const statusCard = document.getElementById('statusCard');
+    const statusMessage = document.getElementById('statusMessage');
+    const updateBtn = document.getElementById('updateBtn');
+    const forceUpdateBtn = document.getElementById('forceUpdateBtn');
+    
+    if (updateStatus.hasUpdate) {
+        statusCard.className = 'update-status-card';
+        statusCard.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: start;">
+                <div>
+                    <h3 style="margin: 0 0 8px 0;">✨ 发现新版本!</h3>
+                    <p style="margin: 0; opacity: 0.8;">有可用的更新内容</p>
+                </div>
+                <div style="font-size: 48px;">🚀</div>
+            </div>
+        `;
+        updateBtn.disabled = false;
+        forceUpdateBtn.disabled = false;
+    } else {
+        statusCard.className = 'update-status-card no-update';
+        statusCard.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: start;">
+                <div>
+                    <h3 style="margin: 0 0 8px 0;">✓ 已是最新版本</h3>
+                    <p style="margin: 0;">当前代码与 GitHub 同步</p>
+                </div>
+                <div style="font-size: 48px;">✅</div>
+            </div>
+        `;
+        updateBtn.disabled = true;
+        forceUpdateBtn.disabled = true;
+    }
+}
+
+function renderCommits(data) {
+    const container = document.getElementById('commitsList');
+    
+    if (!data || !data.commits || data.commits.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-muted);">暂无待更新内容</p>';
+        return;
+    }
+    
+    let html = '<div class="commit-list">';
+    for (let commit of data.commits) {
+        html += `
+            <div class="commit-item">
+                <div style="display: flex; justify-content: space-between;">
+                    <code style="color: var(--primary);">${commit.hash.substring(0, 8)}</code>
+                </div>
+                <p style="margin: 6px 0 0 0; font-size: 14px;">${commit.message}</p>
+            </div>
+        `;
+    }
+    html += '</div>';
+    
+    container.innerHTML = html;
+    updateStatus.hasUpdate = data.count > 0;
+    renderStatus();
+}
+
+async function loadBackups() {
+    try {
+        const res = await fetch('/api/update/backups');
+        const data = await res.json();
+        
+        const container = document.getElementById('backupList');
+        
+        if (data.code !== 200 || !data.data || data.data.length === 0) {
+            container.innerHTML = '<p style="color: var(--text-muted);">暂无备份</p>';
+            return;
+        }
+        
+        let html = '';
+        for (let backup of data.data) {
+            const size = (backup.size / 1024 / 1024).toFixed(2);
+            html += `
+                <div class="backup-item">
+                    <div>
+                        <div style="font-weight: 500;">${backup.name}</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">
+                            ${new Date(backup.created).toLocaleString('zh-CN')} · ${size} MB
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn" style="padding: 6px 12px; font-size: 13px;" 
+                                onclick="restoreBackup('${backup.name}')">
+                            恢复
+                        </button>
+                        <button class="btn" style="padding: 6px 12px; font-size: 13px; background: var(--danger); color: white; border: none;" 
+                                onclick="deleteBackup('${backup.name}')">
+                            删除
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        container.innerHTML = html;
+    } catch (e) {
+        console.error('加载备份失败:', e);
     }
 }
 
 async function performUpdate(force) {
-    let confirmMessage = '确定要从 GitHub 更新代码吗？\n\n建议先备份重要数据。';
-    if (force) {
-        confirmMessage = '⚠️ 警告：强制更新会覆盖所有本地修改！\n\n确定要继续吗？';
-    }
+    if (updateStatus.updating) return;
     
-    if (!confirm(confirmMessage)) {
+    if (!confirm(force 
+        ? '⚠️ 警告: 强制更新将覆盖所有本地修改! 确定要继续吗?' 
+        : '确定要执行更新吗?')) {
         return;
     }
-
-    const logCard = document.getElementById('update-log-card');
-    const logDiv = document.getElementById('update-log');
+    
+    updateStatus.updating = true;
+    document.getElementById('updateBtn').disabled = true;
+    document.getElementById('forceUpdateBtn').disabled = true;
+    
+    const logCard = document.getElementById('updateLogCard');
+    const logOutput = document.getElementById('updateLog');
     logCard.style.display = 'block';
-    logDiv.textContent = '正在更新...';
-
+    logOutput.textContent = '开始更新...';
+    
     try {
-        const response = await fetch('/api/update/perform', {
+        const res = await fetch('/api/update/perform', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ force: force })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ force: force, create_backup: true })
         });
-
-        const data = await response.json();
-
-        if (data.code === 200 || data.success) {
-            let outputText = data.data?.output || data.output || '更新成功！';
-            let message = data.message || '';
-            
-            // 显示详细信息
-            if (data.data?.has_local_changes) {
-                outputText = '检测到本地修改\n' + '='.repeat(40) + '\n' + outputText;
-            }
-            if (data.data?.stashed) {
-                outputText = '已临时保存本地修改\n' + '='.repeat(40) + '\n' + outputText;
+        
+        const data = await res.json();
+        
+        if (data.code === 200 && data.data) {
+            if (data.data.output) {
+                logOutput.textContent = data.data.output;
             }
             
-            logDiv.textContent = outputText;
-            
-            let alertMessage = '';
-            if (message) {
-                alertMessage = message + '\n\n';
+            if (data.data.success) {
+                logOutput.textContent += '\n\n✅ 更新成功!';
+                alert('更新成功! 建议重启应用以加载更新。');
+                checkUpdates();
+                loadBackups();
+            } else {
+                logOutput.textContent += '\n\n⚠️ 更新过程中有问题，请检查日志。';
+                alert('更新过程中有问题，请检查日志。');
             }
-            alertMessage += '更新完成！';
-            
-            alert(alertMessage);
-            
-            setTimeout(() => {
-                location.reload();
-            }, 1500);
         } else {
-            logDiv.textContent = '更新失败：\n' + (data.message || '未知错误');
-            alert('更新失败：' + (data.message || '未知错误'));
+            logOutput.textContent = `更新失败: ${data.message || '未知错误'}`;
         }
     } catch (e) {
-        logDiv.textContent = '更新出错：\n' + e.message;
-        alert('更新出错：' + e.message);
+        logOutput.textContent = `更新出错: ${e.message}`;
+    } finally {
+        updateStatus.updating = false;
+    }
+}
+
+async function restoreBackup(backupName) {
+    if (!confirm(`确定要从备份 "${backupName}" 恢复吗? 这将覆盖当前内容!`)) {
+        return;
+    }
+    
+    try {
+        const res = await fetch('/api/update/restore', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ backup_name: backupName })
+        });
+        
+        const data = await res.json();
+        
+        if (data.code === 200 && data.data && data.data.success) {
+            alert('恢复成功!');
+            location.reload();
+        } else {
+            alert(`恢复失败: ${data.message || '未知错误'}`);
+        }
+    } catch (e) {
+        alert(`恢复出错: ${e.message}`);
+    }
+}
+
+async function deleteBackup(backupName) {
+    if (!confirm(`确定要删除备份 "${backupName}" 吗?`)) {
+        return;
+    }
+    
+    alert('删除备份功能暂未完全实现，请手动删除');
+    loadBackups();
+}
+
+async function checkUpdateStatus() {
+    try {
+        const res = await fetch('/api/update/status');
+        const data = await res.json();
+        // 可以在这里显示实时进度
+    } catch (e) {
+        // 忽略错误
     }
 }
 </script>
