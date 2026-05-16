@@ -36,7 +36,7 @@ CATEGORY_MAP = {
     "keji-toutiao": "科技头条",
     "zhineng-ai": "智能AI",
     "anquan": "安全攻防",
-    "kaifa": "开发者",
+    "kaifa": "开发者生态",
     "shuma": "数码硬件",
     "shehui": "社会热点",
     "qiche": "汽车",
@@ -44,7 +44,7 @@ CATEGORY_MAP = {
     "kaiyuan": "开源推荐",
 }
 NAME_TO_SLUG = {v: k for k, v in CATEGORY_MAP.items() if k != "index"}
-ALL_CATEGORIES = ["时政热点", "科技头条", "智能AI", "安全攻防", "开发者", "数码硬件", "社会热点", "汽车", "游戏", "开源推荐"]
+ALL_CATEGORIES = ["时政热点", "科技头条", "智能AI", "安全攻防", "开发者生态", "数码硬件", "社会热点", "汽车", "游戏", "开源推荐"]
 
 MESSAGE_BLACKLIST = ['赌博', '博彩', '彩票', '色情', '诈骗', '刷单', '微信', 'vx', 'vpn', '翻墙']
 

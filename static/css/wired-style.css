@@ -34,17 +34,16 @@ body {
     color: var(--text-primary); 
     line-height: 1.6; 
     min-height: 100vh;
-    padding-top: var(--nav-height);
 }
 
 /* ==================== 导航栏 ==================== */
 .navbar {
-    position: fixed;
+    position: relative;
     top: 0;
     left: 0;
     right: 0;
     z-index: 1000;
-    height: var(--nav-height);
+    min-height: var(--nav-height);
     background: rgba(255,255,255,0.95);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
@@ -143,7 +142,6 @@ body {
     max-width: 1400px;
     margin: 0 auto;
     padding: 16px;
-    padding-top: calc(var(--nav-height) + 16px);
     display: grid;
     grid-template-columns: 1fr;
     gap: 20px;
@@ -699,6 +697,8 @@ body {
 
 /* ==================== 响应式 - PC端 (>= 1024px) ==================== */
 @media (min-width: 1024px) {
+    .navbar { position: fixed; }
+    body { padding-top: var(--nav-height); }
     .nav-links, .nav-user { display: flex !important; align-items: center; gap: 4px; }
     .nav-mobile-btn { display: none !important; }
     .mobile-menu { display: none !important; }
@@ -721,7 +721,6 @@ body {
     
     .main-wrapper {
         padding: 24px;
-        padding-top: calc(var(--nav-height) + 24px);
         grid-template-columns: var(--sidebar-width) 1fr var(--sidebar-width);
         gap: 28px;
     }
@@ -745,6 +744,8 @@ body {
 
 /* ==================== 响应式 - 平板 (768px - 1023px) ==================== */
 @media (min-width: 768px) and (max-width: 1023px) {
+    .navbar { position: fixed; }
+    body { padding-top: var(--nav-height); }
     .nav-links, .nav-user { display: flex !important; }
     .nav-mobile-btn { display: none !important; }
     .mobile-menu { display: none !important; }
@@ -757,7 +758,6 @@ body {
     
     .main-wrapper {
         padding: 20px;
-        padding-top: calc(var(--nav-height) + 20px);
         grid-template-columns: 1fr;
     }
     .sidebar, .right-sidebar { display: none; }
@@ -771,7 +771,7 @@ body {
     .category-bar { padding: 10px 0; }
     .category-list { padding: 0 16px; gap: 6px; }
     .category-item { padding: 6px 12px; font-size: 0.8rem; }
-    .main-wrapper { padding: 16px; padding-top: calc(var(--nav-height) + 16px); gap: 16px; }
+    .main-wrapper { padding: 16px; gap: 16px; }
     .article-item { padding: 14px 16px; }
     .article-title { font-size: 1rem; }
     .article-meta { gap: 8px; flex-wrap: wrap; }
