@@ -120,7 +120,11 @@
 
                 <div class="nav-section">
                     <div class="nav-section-title">AI中心</div>
-                    <a href="/admin/ai" class="nav-item {% if '/admin/ai' in request.path %}active{% endif %}">
+                    <a href="/admin/ai/control" class="nav-item {% if '/admin/ai/control' in request.path %}active{% endif %}">
+                        <span class="nav-icon">🎮</span>
+                        <span class="nav-text">AI操控控制台</span>
+                    </a>
+                    <a href="/admin/ai" class="nav-item {% if request.path == '/admin/ai' %}active{% endif %}">
                         <span class="nav-icon">🤖</span>
                         <span class="nav-text">AI中心</span>
                     </a>

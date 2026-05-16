@@ -1408,6 +1408,99 @@ def admin_ai_recommend():
     """AI推荐分析页面"""
     return render_template('admin/ai_recommend.html')
 
+@app.route('/admin/ai/control')
+@login_required
+def admin_ai_control():
+    """AI操控控制台页面"""
+    return render_template('admin/ai_control.html')
+
+# ============ API - AI操控系统 ============
+AI_CONTROLLER = None
+
+def get_ai_controller():
+    """获取AI控制器单例"""
+    global AI_CONTROLLER
+    if AI_CONTROLLER is None:
+        try:
+            from ai_controller import init_ai_controller
+            
+            class DBWrapper:
+                def __init__(self, config):
+                    self.config = config
+                    self.connection = MySQLdb.connect(**config)
+            
+            db = DBWrapper(DB_CONFIG)
+            AI_CONTROLLER = init_ai_controller(db, app)
+        except Exception as e:
+            print(f"AI控制器初始化失败: {e}")
+            return None
+    return AI_CONTROLLER
+
+@app.route('/api/ai/chat', methods=['POST'])
+@login_required
+def api_ai_chat():
+    """AI聊天接口 - 用自然语言操控网站"""
+    try:
+        data = request.get_json() or {}
+        user_input = data.get('message', '').strip()
+        
+        if not user_input:
+            return api_response(None, '请输入消息', 400)
+        
+        controller = get_ai_controller()
+        if not controller:
+            return api_response(None, 'AI控制器未初始化', 500)
+        
+        result = controller.process(user_input)
+        
+        username = session.get('admin_user', '')
+        log_admin_action('ai_chat', 'AI操控', {'input': user_input, 'result': result}, username=username)
+        
+        return api_response(result)
+        
+    except Exception as e:
+        return api_response(None, f'AI处理失败: {str(e)}', 500)
+
+@app.route('/api/ai/history')
+@login_required
+def api_ai_history():
+    """获取AI对话历史"""
+    try:
+        controller = get_ai_controller()
+        if not controller:
+            return api_response([])
+        
+        history = controller.get_conversation_history(limit=50)
+        return api_response(history)
+    except Exception as e:
+        return api_response([], str(e), 500)
+
+@app.route('/api/ai/actions')
+@login_required
+def api_ai_actions():
+    """获取AI操作历史"""
+    try:
+        controller = get_ai_controller()
+        if not controller:
+            return api_response([])
+        
+        history = controller.executor.get_action_history(limit=50)
+        return api_response(history)
+    except Exception as e:
+        return api_response([], str(e), 500)
+
+@app.route('/api/ai/quick-actions')
+@login_required
+def api_ai_quick_actions():
+    """获取快捷操作列表"""
+    quick_actions = [
+        {'id': 'analyze', 'name': '分析网站状态', 'icon': '📊', 'prompt': '分析一下网站现状'},
+        {'id': 'statistics', 'name': '查看统计数据', 'icon': '📈', 'prompt': '查看网站统计数据'},
+        {'id': 'auto_pilot', 'name': 'AI自动优化', 'icon': '🤖', 'prompt': '执行自动优化'},
+        {'id': 'help', 'name': '获取帮助', 'icon': '❓', 'prompt': '帮助'}
+    ]
+    return api_response(quick_actions)
+
 
 @app.route('/api/server/stats')
 @login_required

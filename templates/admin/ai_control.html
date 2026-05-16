@@ -1,0 +1,614 @@
+{% extends "admin/base_new.html" %}
+
+{% block title %}AI操控控制台 - 66必读管理后台{% endblock %}
+
+{% block page_style %}
+.ai-control-container {
+    display: grid;
+    grid-template-columns: 1fr 350px;
+    gap: 24px;
+    height: calc(100vh - 140px);
+}
+
+.chat-section {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    overflow: hidden;
+}
+
+.chat-header {
+    padding: 20px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.chat-header h2 {
+    margin: 0 0 8px 0;
+    font-size: 20px;
+}
+
+.chat-header p {
+    margin: 0;
+    opacity: 0.9;
+    font-size: 14px;
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.message {
+    display: flex;
+    gap: 12px;
+    max-width: 85%;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.message.user {
+    margin-left: auto;
+    flex-direction: row-reverse;
+}
+
+.message-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.message.user .message-avatar {
+    background: #667eea;
+    color: white;
+}
+
+.message.assistant .message-avatar {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.message-content {
+    background: var(--bg-secondary);
+    padding: 14px 18px;
+    border-radius: 16px;
+    border: 1px solid var(--border);
+}
+
+.message.user .message-content {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+.message-content pre {
+    margin: 10px 0 0 0;
+    padding: 10px;
+    background: rgba(0,0,0,0.1);
+    border-radius: 8px;
+    font-size: 12px;
+    overflow-x: auto;
+}
+
+.message.user .message-content pre {
+    background: rgba(255,255,255,0.2);
+}
+
+.message-time {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 6px;
+}
+
+.chat-input-wrapper {
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-card);
+}
+
+.chat-input-container {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+}
+
+.chat-input {
+    flex: 1;
+    padding: 14px 18px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-size: 15px;
+    resize: none;
+    max-height: 120px;
+    min-height: 48px;
+    background: var(--bg-page);
+    color: var(--text-primary);
+    transition: all 0.2s;
+}
+
+.chat-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-alpha-20);
+}
+
+.send-btn {
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.send-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.send-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.sidebar-section {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.sidebar-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    padding: 20px;
+}
+
+.sidebar-card h3 {
+    margin: 0 0 16px 0;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.quick-actions {
+    display: grid;
+    gap: 10px;
+}
+
+.quick-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+}
+
+.quick-action-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--primary);
+    transform: translateX(4px);
+}
+
+.quick-action-btn .icon {
+    font-size: 24px;
+}
+
+.quick-action-btn .text {
+    flex: 1;
+}
+
+.quick-action-btn .text .name {
+    font-weight: 500;
+    color: var(--text-primary);
+    display: block;
+}
+
+.quick-action-btn .text .desc {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.action-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.action-item {
+    padding: 10px 14px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    font-size: 13px;
+    border-left: 3px solid var(--primary);
+}
+
+.action-item.success {
+    border-left-color: var(--success);
+}
+
+.action-item.error {
+    border-left-color: var(--danger);
+}
+
+.action-type {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.action-time {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-badge.online {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--success);
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.typing-indicator {
+    display: flex;
+    gap: 4px;
+    padding: 14px 18px;
+}
+
+.typing-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    animation: typing 1.4s infinite;
+}
+
+.typing-dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes typing {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-8px); }
+}
+
+@media (max-width: 1024px) {
+    .ai-control-container {
+        grid-template-columns: 1fr;
+    }
+    .sidebar-section {
+        order: -1;
+    }
+}
+
+@media (max-width: 768px) {
+    .ai-control-container {
+        height: calc(100vh - 120px);
+    }
+    .message {
+        max-width: 95%;
+    }
+}
+{% endblock %}
+
+{% block page_title %}🤖 AI操控控制台{% endblock %}
+
+{% block header_actions %}
+<span class="status-badge online">
+    <span class="status-dot"></span>
+    AI在线
+</span>
+{% endblock %}
+
+{% block content %}
+<div class="ai-control-container">
+    <div class="chat-section">
+        <div class="chat-header">
+            <h2>🤖 AI智能助手</h2>
+            <p>用自然语言操控您的网站 - 支持文章管理、分析、优化等功能</p>
+        </div>
+        
+        <div class="chat-messages" id="chatMessages">
+            <div class="message assistant">
+                <div class="message-avatar">🤖</div>
+                <div>
+                    <div class="message-content">
+                        您好！我是您的AI网站助手，可以帮您：
+                        <ul style="margin: 8px 0 0 20px;">
+                            <li>📝 创建和编辑文章</li>
+                            <li>📊 分析网站状态</li>
+                            <li>🏷️ 智能分类和打标签</li>
+                            <li>🔍 搜索内容</li>
+                            <li>🚀 自动优化网站</li>
+                        </ul>
+                        试试对我说："分析一下网站现状"
+                    </div>
+                    <div class="message-time" id="welcomeTime"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="chat-input-wrapper">
+            <div class="chat-input-container">
+                <textarea 
+                    class="chat-input" 
+                    id="chatInput" 
+                    placeholder="输入您的指令，例如：'帮我分析一下网站现状'..."
+                    rows="1"
+                ></textarea>
+                <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+                    <span>发送</span>
+                    <span>➤</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="sidebar-section">
+        <div class="sidebar-card">
+            <h3>⚡ 快捷操作</h3>
+            <div class="quick-actions" id="quickActions">
+            </div>
+        </div>
+        
+        <div class="sidebar-card">
+            <h3>📋 最近操作</h3>
+            <div class="action-list" id="actionHistory">
+                <div style="color: var(--text-muted); text-align: center; padding: 20px;">
+                    暂无操作记录
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let isLoading = false;
+let conversationHistory = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    const now = new Date();
+    document.getElementById('welcomeTime').textContent = formatTime(now);
+    
+    loadQuickActions();
+    loadActionHistory();
+    
+    const input = document.getElementById('chatInput');
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+    
+    input.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    });
+});
+
+function formatTime(date) {
+    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+}
+
+async function loadQuickActions() {
+    try {
+        const response = await fetch('/api/ai/quick-actions');
+        const result = await response.json();
+        
+        if (result.code === 200 && result.data) {
+            const container = document.getElementById('quickActions');
+            container.innerHTML = result.data.map(action => `
+                <button class="quick-action-btn" onclick="executeQuickAction('${action.prompt}')">
+                    <span class="icon">${action.icon}</span>
+                    <span class="text">
+                        <span class="name">${action.name}</span>
+                    </span>
+                    <span style="font-size: 18px;">→</span>
+                </button>
+            `).join('');
+        }
+    } catch (e) {
+        console.error('加载快捷操作失败:', e);
+    }
+}
+
+async function loadActionHistory() {
+    try {
+        const response = await fetch('/api/ai/actions');
+        const result = await response.json();
+        
+        if (result.code === 200 && result.data && result.data.length > 0) {
+            const container = document.getElementById('actionHistory');
+            container.innerHTML = result.data.slice(0, 10).map(action => `
+                <div class="action-item ${action.success ? 'success' : 'error'}">
+                    <div class="action-type">${action.command_type}</div>
+                    <div class="action-time">${action.timestamp}</div>
+                </div>
+            `).join('');
+        }
+    } catch (e) {
+        console.error('加载操作历史失败:', e);
+    }
+}
+
+function executeQuickAction(prompt) {
+    document.getElementById('chatInput').value = prompt;
+    sendMessage();
+}
+
+function addMessage(content, isUser = false) {
+    const container = document.getElementById('chatMessages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${isUser ? 'user' : 'assistant'}`;
+    
+    const time = formatTime(new Date());
+    
+    messageDiv.innerHTML = `
+        <div class="message-avatar">${isUser ? '👤' : '🤖'}</div>
+        <div>
+            <div class="message-content">${escapeHtml(content)}</div>
+            <div class="message-time">${time}</div>
+        </div>
+    `;
+    
+    container.appendChild(messageDiv);
+    scrollToBottom();
+}
+
+function addTypingIndicator() {
+    const container = document.getElementById('chatMessages');
+    const indicatorDiv = document.createElement('div');
+    indicatorDiv.className = 'message assistant';
+    indicatorDiv.id = 'typingIndicator';
+    indicatorDiv.innerHTML = `
+        <div class="message-avatar">🤖</div>
+        <div class="message-content">
+            <div class="typing-indicator">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            </div>
+        </div>
+    `;
+    container.appendChild(indicatorDiv);
+    scrollToBottom();
+}
+
+function removeTypingIndicator() {
+    const indicator = document.getElementById('typingIndicator');
+    if (indicator) {
+        indicator.remove();
+    }
+}
+
+function scrollToBottom() {
+    const container = document.getElementById('chatMessages');
+    container.scrollTop = container.scrollHeight;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+async function sendMessage() {
+    if (isLoading) return;
+    
+    const input = document.getElementById('chatInput');
+    const message = input.value.trim();
+    
+    if (!message) return;
+    
+    isLoading = true;
+    const sendBtn = document.getElementById('sendBtn');
+    sendBtn.disabled = true;
+    
+    addMessage(message, true);
+    input.value = '';
+    input.style.height = 'auto';
+    
+    addTypingIndicator();
+    
+    try {
+        const response = await fetch('/api/ai/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ message: message })
+        });
+        
+        const result = await response.json();
+        
+        removeTypingIndicator();
+        
+        if (result.code === 200 && result.data) {
+            const aiResponse = result.data.response;
+            addMessage(aiResponse, false);
+            
+            if (result.data.execution) {
+                const execResult = result.data.execution;
+                if (execResult.success) {
+                    loadActionHistory();
+                }
+            }
+        } else {
+            addMessage(`抱歉，处理失败了：${result.message || '未知错误'}`, false);
+        }
+        
+    } catch (e) {
+        removeTypingIndicator();
+        addMessage(`抱歉，发生了错误：${e.message}`, false);
+    } finally {
+        isLoading = false;
+        sendBtn.disabled = false;
+    }
+}
+</script>
+{% endblock %}
