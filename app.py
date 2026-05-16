@@ -1159,9 +1159,6 @@ def robots():
 
 def translate_text(text): return text
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=False)
-
 # ============ GitHub 自动更新功能 ============
 import time
 
@@ -1176,7 +1173,6 @@ _update_lock = threading.Lock()
 
 # 项目根目录配置
 PROJECT_ROOT = '/workspace/66bd-net'
-import os
 if os.path.exists('/var/www/dongshushu-paper'):
     PROJECT_ROOT = '/var/www/dongshushu-paper'
 
@@ -1392,9 +1388,16 @@ def submit_feedback():
             return jsonify({'success': False, 'message': '反馈内容不能少于5个字'})
         
         import logging
-        logging.basicConfig(filename='/var/www/dongshushu-paper/feedback.log', level=logging.INFO)
+        # 自动检测反馈日志路径
+        feedback_log_path = '/workspace/66bd-net/feedback.log'
+        if os.path.exists('/var/www/dongshushu-paper'):
+            feedback_log_path = '/var/www/dongshushu-paper/feedback.log'
+        logging.basicConfig(filename=feedback_log_path, level=logging.INFO)
         logging.info(f"反馈: {name} <{email}> - {content}")
         
         return jsonify({'success': True, 'message': '反馈已提交，我们会尽快处理！'})
     except Exception as e:
         return jsonify({'success': False, 'message': f'提交失败: {str(e)}'})
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=False)
