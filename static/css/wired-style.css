@@ -28,7 +28,14 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { font-size: 16px; scroll-behavior: smooth; }
-body { font-family: var(--font); background: var(--bg-primary); color: var(--text-primary); line-height: 1.6; min-height: 100vh; }
+body { 
+    font-family: var(--font); 
+    background: var(--bg-primary); 
+    color: var(--text-primary); 
+    line-height: 1.6; 
+    min-height: 100vh;
+    padding-top: var(--nav-height);
+}
 
 /* ==================== 导航栏 ==================== */
 .navbar {
@@ -36,9 +43,9 @@ body { font-family: var(--font); background: var(--bg-primary); color: var(--tex
     top: 0;
     left: 0;
     right: 0;
-    z-index: 100;
+    z-index: 1000;
     height: var(--nav-height);
-    background: rgba(255,255,255,0.92);
+    background: rgba(255,255,255,0.95);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     border-bottom: 1px solid var(--border);
@@ -69,12 +76,12 @@ body { font-family: var(--font); background: var(--bg-primary); color: var(--tex
 .nav-mobile-btn {
     display: flex;
     padding: 8px 12px;
-    background: none;
-    border: none;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
     color: var(--text-primary);
     font-size: 1.4rem;
     cursor: pointer;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius);
 }
 .nav-mobile-btn:hover { background: var(--bg-hover); }
 
