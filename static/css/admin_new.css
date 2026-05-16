@@ -18,18 +18,18 @@
     --info: #6366F1;
     --info-light: rgba(99, 102, 241, 0.1);
 
-    /* 背景色 */
+    /* 背景色 - 浅色模式 */
     --bg-page: #F8FAFC;
     --bg-card: #FFFFFF;
     --bg-hover: #F1F5F9;
     --bg-active: #E2E8F0;
 
-    /* 文字颜色 */
+    /* 文字颜色 - 浅色模式 */
     --text-primary: #1E293B;
     --text-secondary: #64748B;
     --text-muted: #94A3B8;
 
-    /* 边框 */
+    /* 边框 - 浅色模式 */
     --border: #E2E8F0;
     --border-light: #F1F5F9;
 
@@ -60,6 +60,34 @@
     /* 间距 */
     --sidebar-width: 260px;
     --header-height: 64px;
+}
+
+/* === 深色模式变量 === */
+[data-theme="dark"] {
+    /* 背景色 - 深色模式 */
+    --bg-page: #0F172A;
+    --bg-card: #1E293B;
+    --bg-hover: #334155;
+    --bg-active: #475569;
+
+    /* 文字颜色 - 深色模式 */
+    --text-primary: #F1F5F9;
+    --text-secondary: #CBD5E1;
+    --text-muted: #94A3B8;
+
+    /* 边框 - 深色模式 */
+    --border: #334155;
+    --border-light: #475569;
+
+    /* 侧边栏 - 深色模式 */
+    --sidebar-bg: #0F172A;
+    --sidebar-hover: #1E293B;
+
+    /* 阴影 - 深色模式 */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px -1px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
 }
 
 /* === 基础重置 === */

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -117,14 +117,46 @@
                 <button type="submit" class="btn btn-primary">搜索</button>
             </form>
             
+            <!-- 批量操作栏 -->
+            <div class="batch-actions">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <input type="checkbox" id="select-all" class="batch-select-all" style="width: 18px; height: 18px;">
+                    <label for="select-all" style="color: var(--text-secondary);">
+                        已选择 <span class="selected-count">0</span> 项
+                    </label>
+                </div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <select id="batch-category" class="form-select" style="min-width: 140px; padding: 6px 12px;">
+                        <option value="">批量修改分类</option>
+                        <option value="时政热点">时政热点</option>
+                        <option value="科技头条">科技头条</option>
+                        <option value="智能AI">智能AI</option>
+                        <option value="安全攻防">安全攻防</option>
+                        <option value="开发者生态">开发者生态</option>
+                        <option value="数码硬件">数码硬件</option>
+                        <option value="社会热点">社会热点</option>
+                        <option value="汽车">汽车</option>
+                        <option value="游戏">游戏</option>
+                        <option value="开源推荐">开源推荐</option>
+                        <option value="医疗健康">医疗健康</option>
+                    </select>
+                    <button class="btn btn-sm btn-secondary" onclick="BatchActions.updateCategory()">更新分类</button>
+                    <button class="btn btn-sm btn-success" onclick="BatchActions.publishArticles(true)">发布</button>
+                    <button class="btn btn-sm btn-secondary" onclick="BatchActions.publishArticles(false)">取消发布</button>
+                    <button class="btn btn-sm btn-danger" onclick="BatchActions.deleteArticles()">删除</button>
+                    <button class="btn btn-sm btn-secondary" onclick="BatchActions.exportArticles()">导出</button>
+                </div>
+            </div>
+
             <div class="card" style="margin-bottom: 24px;">
                 <div class="table-wrapper">
                     <div class="table-responsive">
             <table>
-                        <thead><tr><th style="width:50px;">ID</th><th>标题</th><th>分类</th><th>来源</th><th>状态</th><th>时间</th><th>阅读</th><th style="width:180px;">操作</th></tr></thead>
+                        <thead><tr><th style="width:40px;"><input type="checkbox" class="batch-select-all" style="width: 18px; height: 18px;"></th><th style="width:50px;">ID</th><th>标题</th><th>分类</th><th>来源</th><th>状态</th><th>时间</th><th>阅读</th><th style="width:180px;">操作</th></tr></thead>
                         <tbody>
                         {% for article in articles %}
                         <tr>
+                            <td><input type="checkbox" class="batch-select" value="{{ article.id }}" style="width: 18px; height: 18px;"></td>
                             <td>{{ article.id }}</td>
                             <td><a href="/admin/articles/{{ article.id }}/edit" style="color: var(--primary);">{{ article.title[:50] }}{% if article.title|length > 50 %}...{% endif %}</a></td>
                             <td><span class="badge badge-primary">{{ article.category }}</span></td>
@@ -148,7 +180,7 @@
                             </td>
                         </tr>
                         {% else %}
-                        <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-secondary);">暂无文章</td></tr>
+                        <tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-secondary);">暂无文章</td></tr>
                         {% endfor %}
                         </tbody>
                     </table>
@@ -188,6 +220,14 @@
         window.addEventListener('resize', handleResize);
         document.addEventListener('DOMContentLoaded', handleResize);
     </script>
+
+    <!-- 功能模块脚本 -->
+    <script src="/static/js/admin_features.js"></script>
+
+    <!-- 快捷键提示 -->
+    <div class="keyboard-hint">
+        按 <kbd>?</kbd> 查看快捷键
+    </div>
 
 </body>
 </html>

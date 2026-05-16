@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +7,30 @@
     <link rel="stylesheet" href="/static/css/admin_new.css">
     <style>
         {% block page_style %}{% endblock %}
+        
+        /* 快捷键提示 */
+        .keyboard-hint {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 10px 16px;
+            font-size: 13px;
+            color: var(--text-muted);
+            box-shadow: var(--shadow-md);
+            z-index: 1000;
+        }
+        
+        .keyboard-hint kbd {
+            background: var(--bg-page);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+            border: 1px solid var(--border);
+            margin: 0 4px;
+        }
     </style>
 </head>
 <body>
@@ -142,6 +166,14 @@
 
         {% block page_script %}{% endblock %}
     </script>
+
+    <!-- 功能模块脚本 -->
+    <script src="/static/js/admin_features.js"></script>
+
+    <!-- 快捷键提示 -->
+    <div class="keyboard-hint">
+        按 <kbd>?</kbd> 查看快捷键
+    </div>
 
     {% block extra_scripts %}{% endblock %}
 </body>
