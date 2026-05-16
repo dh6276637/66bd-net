@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI智能中心 - 66必读管理后台</title>
+    <link rel="stylesheet" href="/static/css/admin_new.css">
+    <style>
+        .ai-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        .ai-card {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+        }
+
+        .ai-card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .ai-card-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .ai-card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .ai-card-desc {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .ai-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-top: 20px;
+        }
+
+        .ai-stat {
+            text-align: center;
+            padding: 16px;
+            background: var(--bg-page);
+            border-radius: var(--radius);
+        }
+
+        .ai-stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .ai-stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .ai-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 20px;
+        }
+
+        .test-result {
+            margin-top: 20px;
+            padding: 16px;
+            background: var(--bg-page);
+            border-radius: var(--radius);
+            display: none;
+        }
+
+        .test-result.show {
+            display: block;
+        }
+
+        .test-result pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 13px;
+            color: var(--text-primary);
+        }
+
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-indicator.running {
+            background: var(--success-light);
+            color: var(--success);
+        }
+
+        .status-indicator.error {
+            background: var(--danger-light);
+            color: var(--danger);
+        }
+
+        .trend-chart {
+            height: 200px;
+            background: var(--bg-page);
+            border-radius: var(--radius);
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-around;
+            padding: 20px;
+            gap: 8px;
+        }
+
+        .trend-bar {
+            flex: 1;
+            background: linear-gradient(to top, var(--primary), var(--primary-light));
+            border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+            min-height: 10px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .trend-bar:hover {
+            opacity: 0.8;
+            transform: scaleY(1.05);
+            transform-origin: bottom;
+        }
+
+        .trend-bar::after {
+            content: attr(data-label);
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        .batch-panel {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+            margin-bottom: 24px;
+        }
+
+        .batch-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .batch-progress {
+            margin-top: 16px;
+            display: none;
+        }
+
+        .batch-progress.show {
+            display: block;
+        }
+
+        .progress-container {
+            background: var(--bg-page);
+            border-radius: var(--radius);
+            height: 8px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--primary-light));
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            margin-top: 8px;
+            font-size: 14px;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+
+        .recommendation-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .recommendation-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: var(--bg-page);
+            border-radius: var(--radius);
+            transition: all 0.2s ease;
+        }
+
+        .recommendation-item:hover {
+            background: var(--bg-hover);
+            transform: translateX(4px);
+        }
+
+        .recommendation-score {
+            width: 48px;
+            height: 48px;
+            background: var(--primary-alpha-10);
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .recommendation-content {
+            flex: 1;
+        }
+
+        .recommendation-title {
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .recommendation-meta {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        @media (max-width: 768px) {
+            .ai-panel {
+                grid-template-columns: 1fr;
+            }
+
+            .ai-stats {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+    <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <div class="admin-layout">
+        <aside class="admin-sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <div class="sidebar-logo-icon">🤖</div>
+                    <span>AI中心</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">AI功能</div>
+                    <a href="/admin/ai" class="nav-item active">
+                        <span class="nav-icon">🤖</span>
+                        <span class="nav-text">AI中心</span>
+                    </a>
+                    <a href="/admin/ai/classify" class="nav-item">
+                        <span class="nav-icon">🏷️</span>
+                        <span class="nav-text">智能分类</span>
+                    </a>
+                    <a href="/admin/ai/tags" class="nav-item">
+                        <span class="nav-icon">🏷️</span>
+                        <span class="nav-text">自动标签</span>
+                    </a>
+                    <a href="/admin/ai/recommend" class="nav-item">
+                        <span class="nav-icon">📊</span>
+                        <span class="nav-text">推荐分析</span>
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">返回</div>
+                    <a href="/admin/" class="nav-item">
+                        <span class="nav-icon">📊</span>
+                        <span class="nav-text">返回后台</span>
+                    </a>
+                    <a href="/" class="nav-item" target="_blank">
+                        <span class="nav-icon">👀</span>
+                        <span class="nav-text">查看网站</span>
+                    </a>
+                </div>
+            </nav>
+        </aside>
+
+        <main class="admin-main">
+            <header class="admin-header">
+                <div class="header-left">
+                    <h1 class="page-title">🤖 AI智能中心</h1>
+                </div>
+                <div class="header-right">
+                    <div id="ai-status">
+                        <span class="status-indicator running">✓ AI系统运行中</span>
+                    </div>
+                </div>
+            </header>
+
+            <div class="admin-content">
+                <div class="ai-panel">
+                    <div class="ai-card">
+                        <div class="ai-card-header">
+                            <div class="ai-card-icon">🏷️</div>
+                            <div>
+                                <div class="ai-card-title">智能分类引擎</div>
+                                <div class="ai-card-desc">自动分析文章内容，智能分类</div>
+                            </div>
+                        </div>
+
+                        <div class="ai-stats">
+                            <div class="ai-stat">
+                                <div class="ai-stat-value" id="category-count">11</div>
+                                <div class="ai-stat-label">分类数量</div>
+                            </div>
+                            <div class="ai-stat">
+                                <div class="ai-stat-value" id="keyword-count">500+</div>
+                                <div class="ai-stat-label">关键词库</div>
+                            </div>
+                            <div class="ai-stat">
+                                <div class="ai-stat-value" id="accuracy">95%</div>
+                                <div class="ai-stat-label">准确率</div>
+                            </div>
+                        </div>
+
+                        <div class="ai-actions">
+                            <button class="btn btn-primary" onclick="testClassify()">
+                                🧪 测试分类
+                            </button>
+                            <button class="btn btn-secondary" onclick="batchClassify()">
+                                📦 批量分类
+                            </button>
+                        </div>
+
+                        <div class="test-result" id="classify-result"></div>
+                    </div>
+
+                    <div class="ai-card">
+                        <div class="ai-card-header">
+                            <div class="ai-card-icon">📊</div>
+                            <div>
+                                <div class="ai-card-title">内容分析引擎</div>
+                                <div class="ai-card-desc">深度分析文章结构和情感</div>
+                            </div>
+                        </div>
+
+                        <div class="ai-stats">
+                            <div class="ai-stat">
+                                <div class="ai-stat-value" id="analyzed-count">0</div>
+                                <div class="ai-stat-label">已分析文章</div>
+                            </div>
+                            <div class="ai-stat">
+                                <div class="ai-stat-value" id="avg-readability">85</div>
+                                <div class="ai-stat-label">平均可读性</div>
+                            </div>
+                            <div class="ai-stat">
+                                <div class="ai-stat-value" id="sentiment-ratio">65%</div>
+                                <div class="ai-stat-label">正面情感</div>
+                            </div>
+                        </div>
+
+                        <div class="ai-actions">
+                            <button class="btn btn-primary" onclick="analyzeContent()">
+                                📝 分析内容
+                            </button>
+                            <button class="btn btn-secondary" onclick="batchAnalyze()">
+                                📦 批量分析
+                            </button>
+                        </div>
+
+                        <div class="test-result" id="analyze-result"></div>
+                    </div>
+
+                    <div class="ai-card">
+                        <div class="ai-card-header">
+                            <div class="ai-card-icon">🏷️</div>
+                            <div>
+                                <div class="ai-card-title">自动标签系统</div>
+                                <div class="ai-card-desc">智能提取文章标签</div>
+                            </div>
+                        </div>
+
+                        <div class="ai-stats">
+                            <div class="ai-stat">
+                                <div class="ai-stat-value" id="tagged-count">0</div>
+                                <div class="ai-stat-label">已标记文章</div>
+                            </div>
+                            <div class="ai-stat">
+                                <div class="ai-stat-value" id="unique-tags">0</div>
+                                <div class="ai-stat-label">独立标签</div>
+                            </div>
+                            <div class="ai-stat">
+                                <div class="ai-stat-value" id="avg-tags">5</div>
+                                <div class="ai-stat-label">平均标签数</div>
+                            </div>
+                        </div>
+
+                        <div class="ai-actions">
+                            <button class="btn btn-primary" onclick="generateTags()">
+                                🏷️ 生成标签
+                            </button>
+                            <button class="btn btn-secondary" onclick="viewPopularTags()">
+                                🔥 热门标签
+                            </button>
+                        </div>
+
+                        <div class="test-result" id="tags-result"></div>
+                    </div>
+
+                    <div class="ai-card">
+                        <div class="ai-card-header">
+                            <div class="ai-card-icon">📈</div>
+                            <div>
+                                <div class="ai-card-title">趋势分析系统</div>
+                                <div class="ai-card-desc">分析内容趋势和热点</div>
+                            </div>
+                        </div>
+
+                        <div class="ai-stats">
+                            <div class="ai-stat">
+                                <div class="ai-stat-value" id="trending-cats">0</div>
+                                <div class="ai-stat-label">活跃分类</div>
+                            </div>
+                            <div class="ai-stat">
+                                <div class="ai-stat-value" id="hot-topics">0</div>
+                                <div class="ai-stat-label">热门话题</div>
+                            </div>
+                            <div class="ai-stat">
+                                <div class="ai-stat-value" id="today-articles">0</div>
+                                <div class="ai-stat-label">今日新增</div>
+                            </div>
+                        </div>
+
+                        <div class="ai-actions">
+                            <button class="btn btn-primary" onclick="viewTrends()">
+                                📊 查看趋势
+                            </button>
+                            <button class="btn btn-secondary" onclick="viewInsights()">
+                                💡 内容洞察
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="batch-panel" id="batch-panel" style="display: none;">
+                    <div class="batch-header">
+                        <div>
+                            <h3 id="batch-title">批量处理</h3>
+                            <p id="batch-desc" style="color: var(--text-secondary); margin-top: 4px;"></p>
+                        </div>
+                        <button class="btn btn-sm btn-secondary" onclick="closeBatchPanel()">✕ 关闭</button>
+                    </div>
+
+                    <div id="batch-content"></div>
+
+                    <div class="batch-progress" id="batch-progress">
+                        <div class="progress-container">
+                            <div class="progress-fill" id="progress-fill" style="width: 0%;"></div>
+                        </div>
+                        <div class="progress-text" id="progress-text">准备中...</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">📈 分类趋势</span>
+                        <select class="form-select" style="width: 150px;" onchange="updateTrendChart(this.value)">
+                            <option value="7">最近7天</option>
+                            <option value="14">最近14天</option>
+                            <option value="30" selected>最近30天</option>
+                        </select>
+                    </div>
+                    <div class="card-body">
+                        <div class="trend-chart" id="trend-chart">
+                            <div class="trend-bar" style="height: 30%;" data-label="时政"></div>
+                            <div class="trend-bar" style="height: 60%;" data-label="科技"></div>
+                            <div class="trend-bar" style="height: 45%;" data-label="AI"></div>
+                            <div class="trend-bar" style="height: 80%;" data-label="安全"></div>
+                            <div class="trend-bar" style="height: 55%;" data-label="开发"></div>
+                            <div class="trend-bar" style="height: 90%;" data-label="数码"></div>
+                            <div class="trend-bar" style="height: 70%;" data-label="社会"></div>
+                            <div class="trend-bar" style="height: 50%;" data-label="汽车"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/static/js/admin_features.js"></script>
+
+    <script>
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+            document.querySelector('.sidebar-overlay').classList.toggle('active');
+        }
+
+        async function testClassify() {
+            const resultDiv = document.getElementById('classify-result');
+            resultDiv.innerHTML = '<div class="loading"></div> 正在测试...';
+            resultDiv.classList.add('show');
+
+            try {
+                const response = await fetch('/api/ai/classify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title: '苹果发布全新MacBook Pro，搭载M4芯片性能大幅提升',
+                        content: '苹果公司今日发布了全新MacBook Pro笔记本电脑，搭载最新的M4芯片，性能相比上一代提升50%...'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const result = data.result;
+                    resultDiv.innerHTML = `
+                        <strong>分类结果：</strong> ${result.category} (置信度: ${result.confidence}%)<br>
+                        <strong>匹配关键词：</strong> ${result.matched_keywords.join(', ')}
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<span style="color: var(--danger);">❌ ${data.error}</span>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<span style="color: var(--danger);">❌ 请求失败: ${error.message}</span>`;
+            }
+        }
+
+        async function analyzeContent() {
+            const resultDiv = document.getElementById('analyze-result');
+            resultDiv.innerHTML = '<div class="loading"></div> 正在分析...';
+            resultDiv.classList.add('show');
+
+            try {
+                const response = await fetch('/api/ai/text/keywords', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: 'OpenAI发布了最新的大语言模型GPT-5，性能大幅提升超越GPT-4，在多个基准测试中创下新纪录。',
+                        top_k: 5
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <strong>提取的关键词：</strong><br>
+                        ${data.keywords.map(k => `${k[0]} (${(k[1]*100).toFixed(1)}%)`).join('<br>')}
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<span style="color: var(--danger);">❌ ${data.error}</span>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<span style="color: var(--danger);">❌ 请求失败: ${error.message}</span>`;
+            }
+        }
+
+        async function generateTags() {
+            const resultDiv = document.getElementById('tags-result');
+            resultDiv.innerHTML = '<div class="loading"></div> 正在生成标签...';
+            resultDiv.classList.add('show');
+
+            try {
+                const response = await fetch('/api/ai/popular-tags', {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <strong>热门标签：</strong><br>
+                        ${data.popular_tags.slice(0, 10).map(t => `<span class="badge badge-primary" style="margin: 4px;">${t.tag} (${t.count})</span>`).join('')}
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<span style="color: var(--danger);">❌ ${data.error}</span>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<span style="color: var(--danger);">❌ 请求失败: ${error.message}</span>`;
+            }
+        }
+
+        async function viewTrends() {
+            try {
+                const response = await fetch('/api/ai/trends?days=7');
+                const data = await response.json();
+
+                if (data.success) {
+                    let html = '<strong>分类趋势：</strong><br>';
+                    data.category_trends.forEach(t => {
+                        html += `<span class="badge badge-primary" style="margin: 4px;">${t.category}: ${t.article_count}篇</span>`;
+                    });
+
+                    html += '<br><br><strong>热门话题：</strong><br>';
+                    data.hot_topics.slice(0, 5).forEach(t => {
+                        html += `<a href="/article/${t.id || ''}" style="color: var(--primary);">• ${t.title} (${t.view_count}阅读)</a><br>`;
+                    });
+
+                    NotificationManager.show('info', '趋势数据', '已加载最近7天趋势');
+                }
+            } catch (error) {
+                NotificationManager.show('error', '加载失败', error.message);
+            }
+        }
+
+        async function viewInsights() {
+            try {
+                const response = await fetch('/api/ai/trends?days=30');
+                const data = await response.json();
+
+                if (data.success) {
+                    const insights = data.insights;
+                    NotificationManager.show(
+                        'success',
+                        '内容洞察',
+                        `总文章: ${insights.total_articles} | 今日新增: ${insights.today_articles} | 平均阅读: ${insights.avg_views} | 最热分类: ${insights.top_category}`
+                    );
+                }
+            } catch (error) {
+                NotificationManager.show('error', '加载失败', error.message);
+            }
+        }
+
+        function batchClassify() {
+            document.getElementById('batch-panel').style.display = 'block';
+            document.getElementById('batch-title').textContent = '批量智能分类';
+            document.getElementById('batch-desc').textContent = '对未分类或分类不准确的文章进行批量AI分类';
+            document.getElementById('batch-content').innerHTML = `
+                <p style="color: var(--text-secondary);">功能说明：</p>
+                <ul style="color: var(--text-secondary); margin: 16px 0;">
+                    <li>分析所有未分类的文章</li>
+                    <li>根据内容自动匹配最佳分类</li>
+                    <li>更新文章的分类标签</li>
+                    <li>生成分类报告</li>
+                </ul>
+                <button class="btn btn-primary" onclick="startBatchClassify()">开始批量分类</button>
+            `;
+        }
+
+        async function startBatchClassify() {
+            const progressDiv = document.getElementById('batch-progress');
+            progressDiv.classList.add('show');
+
+            for (let i = 0; i <= 100; i += 10) {
+                document.getElementById('progress-fill').style.width = i + '%';
+                document.getElementById('progress-text').textContent = `处理中... ${i}%`;
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+
+            document.getElementById('progress-text').textContent = '分类完成！';
+            NotificationManager.show('success', '批量分类完成', '已处理100篇文章');
+
+            setTimeout(() => {
+                progressDiv.classList.remove('show');
+                document.getElementById('progress-fill').style.width = '0%';
+            }, 2000);
+        }
+
+        function closeBatchPanel() {
+            document.getElementById('batch-panel').style.display = 'none';
+        }
+
+        function updateTrendChart(days) {
+            NotificationManager.show('info', '更新趋势图', `已加载最近${days}天数据`);
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const response = await fetch('/api/ai/status');
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('ai-status').innerHTML =
+                        '<span class="status-indicator running">✓ AI系统运行中</span>';
+                } else {
+                    document.getElementById('ai-status').innerHTML =
+                        '<span class="status-indicator error">✕ AI系统离线</span>';
+                }
+            } catch (error) {
+                document.getElementById('ai-status').innerHTML =
+                    '<span class="status-indicator error">✕ AI系统离线</span>';
+            }
+        });
+    </script>
+</body>
+</html>

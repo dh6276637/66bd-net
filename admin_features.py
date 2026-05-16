@@ -100,6 +100,105 @@ def export_to_json(data, filename=None):
     
     return response
 
+def export_to_excel(data, filename=None):
+    """将数据导出为Excel格式"""
+    if not data:
+        return None
+    
+    if not filename:
+        filename = f"export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    
+    # 生成HTML表格作为Excel文件（XML格式）
+    html = '''<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+<Worksheet ss:Name="Data">
+<table>
+'''
+    
+    if isinstance(data, list) and len(data) > 0:
+        # 写入表头
+        html += '<Row>\n'
+        for header in data[0].keys():
+            html += f'<Cell><Data ss:Type="String">{header}</Data></Cell>\n'
+        html += '</Row>\n'
+        
+        # 写入数据
+        for row in data:
+            html += '<Row>\n'
+            for value in row.values():
+                if isinstance(value, bool):
+                    html += f'<Cell><Data ss:Type="String">{"是" if value else "否"}</Data></Cell>\n'
+                elif isinstance(value, (int, float)):
+                    html += f'<Cell><Data ss:Type="Number">{value}</Data></Cell>\n'
+                else:
+                    value_str = str(value) if value else ''
+                    value_str = value_str.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                    html += f'<Cell><Data ss:Type="String">{value_str}</Data></Cell>\n'
+            html += '</Row>\n'
+    
+    html += '''</table>
+</Worksheet>
+</Workbook>'''
+    
+    response = Response(html, mimetype='application/vnd.ms-excel')
+    response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+    response.headers['Content-Type'] = 'application/vnd.ms-excel; charset=utf-8'
+    
+    return response
+
+def get_export_data(db, export_type, article_ids=None):
+    """获取导出数据"""
+    conn = db.connection
+    cur = conn.cursor()
+    
+    try:
+        if export_type == 'articles':
+            if article_ids:
+                placeholders = ','.join(['%s'] * len(article_ids))
+                query = f"SELECT * FROM article WHERE id IN ({placeholders})"
+                cur.execute(query, article_ids)
+            else:
+                cur.execute("SELECT * FROM article ORDER BY created_at DESC")
+        elif export_type == 'users':
+            cur.execute("SELECT * FROM users ORDER BY created_at DESC")
+        elif export_type == 'logs':
+            cur.execute("SELECT * FROM admin_action_log ORDER BY created_at DESC")
+        else:
+            return None
+        
+        columns = [desc[0] for desc in cur.description]
+        result = []
+        
+        for row in cur.fetchall():
+            row_dict = dict(zip(columns, row))
+            for key, value in row_dict.items():
+                if isinstance(value, datetime):
+                    row_dict[key] = value.strftime('%Y-%m-%d %H:%M:%S')
+            result.append(row_dict)
+        
+        return result
+    
+    finally:
+        cur.close()
+
+def export_data(db, export_type, export_format, article_ids=None):
+    """根据格式导出数据"""
+    data = get_export_data(db, export_type, article_ids)
+    
+    if not data:
+        return None
+    
+    filename = f"{export_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    
+    if export_format == 'json':
+        return export_to_json(data, f"{filename}.json")
+    elif export_format == 'xlsx':
+        return export_to_excel(data, f"{filename}.xlsx")
+    else:  # csv
+        return export_to_csv(data, f"{filename}.csv")
+
 def export_articles(db, article_ids=None):
     """导出文章数据"""
     conn = db.connection
@@ -276,24 +375,29 @@ def register_admin_features(app):
     init_dark_mode(app)
     
     # 导出路由
-    @app.route('/admin/export/articles')
+    @app.route('/admin/export/<export_type>')
     @login_required
-    def admin_export_articles():
+    def admin_export(export_type):
         from flask import request
         article_ids = request.args.get('ids')
         if article_ids:
             article_ids = [int(id.strip()) for id in article_ids.split(',')]
-        return export_articles(app.config['DB'], article_ids)
+        export_format = request.args.get('format', 'csv')
+        return export_data(app.config['DB'], export_type, export_format, article_ids)
     
     @app.route('/admin/export/users')
     @login_required
     def admin_export_users():
-        return export_users(app.config['DB'])
+        from flask import request
+        export_format = request.args.get('format', 'csv')
+        return export_data(app.config['DB'], 'users', export_format)
     
     @app.route('/admin/export/logs')
     @login_required
     def admin_export_logs():
-        return export_action_logs(app.config['DB'])
+        from flask import request
+        export_format = request.args.get('format', 'csv')
+        return export_data(app.config['DB'], 'logs', export_format)
     
     # 批量操作路由
     @app.route('/admin/batch/delete', methods=['POST'])

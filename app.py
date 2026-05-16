@@ -1399,5 +1399,43 @@ def submit_feedback():
     except Exception as e:
         return jsonify({'success': False, 'message': f'提交失败: {str(e)}'})
 
+# ============ AI智能增强系统初始化 ============
+def init_ai_system():
+    """初始化AI增强系统"""
+    try:
+        from ai_api import register_ai_routes
+        
+        class DBWrapper:
+            def __init__(self, config):
+                self.config = config
+                self.connection = MySQLdb.connect(**config)
+        
+        db = DBWrapper(DB_CONFIG)
+        success = register_ai_routes(app)
+        
+        print("\n" + "="*60)
+        print("🤖 AI智能增强系统已启用")
+        print("="*60)
+        print("可用功能:")
+        print("  ✓ AI智能文章分类")
+        print("  ✓ 文章相似度推荐")
+        print("  ✓ 个性化内容推荐")
+        print("  ✓ 智能语义搜索")
+        print("  ✓ 趋势数据分析")
+        print("  ✓ 自动标签生成")
+        print("  ✓ 文本摘要提取")
+        print("  ✓ 情感分析")
+        print("="*60 + "\n")
+        
+        return True
+    except ImportError as e:
+        print(f"\n⚠️  AI增强模块加载失败: {e}")
+        print("  智能功能将不可用，但网站仍可正常运行\n")
+        return False
+    except Exception as e:
+        print(f"\n⚠️  AI系统初始化失败: {e}")
+        print("  智能功能将不可用，但网站仍可正常运行\n")
+        return False
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)
