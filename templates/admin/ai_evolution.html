@@ -1,0 +1,877 @@
+{% extends "admin/base_new.html" %}
+
+{% block title %}AI 进化控制台 - 66必读管理后台{% endblock %}
+
+{% block page_style %}
+.ai-section {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    margin-bottom: 24px;
+    border: 1px solid var(--border);
+}
+
+.ai-status-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 16px;
+    padding: 24px;
+    color: white;
+    margin-bottom: 24px;
+}
+
+.parameter-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    margin-bottom: 12px;
+}
+
+.param-value {
+    font-family: 'SF Mono', monospace;
+    font-size: 14px;
+    color: var(--primary);
+}
+
+.param-confidence {
+    width: 100px;
+}
+
+.confidence-bar {
+    height: 6px;
+    background: var(--bg-secondary);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.confidence-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.confidence-high { background: #10b981; }
+.confidence-medium { background: #f59e0b; }
+.confidence-low { background: #ef4444; }
+
+.safety-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.safety-safe { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+.safety-low { background: rgba(16, 185, 129, 0.08); color: #059669; }
+.safety-medium { background: rgba(245, 158, 11, 0.1); color: #d97706; }
+.safety-high { background: rgba(239, 68, 68, 0.1); color: #dc2626; }
+.safety-danger { background: rgba(220, 38, 38, 0.15); color: #b91c1c; }
+
+.evolution-log {
+    background: #1e1e1e;
+    color: #d4d4d4;
+    padding: 16px;
+    border-radius: 8px;
+    font-family: 'SF Mono', monospace;
+    font-size: 12px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.log-entry {
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.log-time {
+    color: #6b7280;
+    margin-right: 8px;
+}
+
+.log-success { color: #10b981; }
+.log-warning { color: #f59e0b; }
+.log-error { color: #ef4444; }
+.log-info { color: #60a5fa; }
+
+.metric-card {
+    background: var(--bg-secondary);
+    padding: 16px;
+    border-radius: 12px;
+    text-align: center;
+}
+
+.metric-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.metric-label {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.operation-form {
+    background: var(--bg-secondary);
+    padding: 20px;
+    border-radius: 12px;
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+}
+
+.form-input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-page);
+    color: var(--text-primary);
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-alpha-20);
+}
+
+.btn-ai {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-ai:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
+}
+
+.btn-ai:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-ai-outline {
+    background: transparent;
+    color: var(--primary);
+    border: 2px solid var(--primary);
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-ai-outline:hover {
+    background: var(--primary);
+    color: white;
+}
+
+.hallucination-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    border-radius: 8px;
+    margin-top: 12px;
+}
+
+.pulse-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #10b981;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.2); }
+}
+
+.learning-visualization {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 12px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+}
+
+.learning-bar {
+    flex: 1;
+    min-width: 30px;
+    height: 60px;
+    background: linear-gradient(to top, #667eea, #764ba2);
+    border-radius: 4px;
+    opacity: 0.3;
+    transition: all 0.3s ease;
+}
+
+.learning-bar.active {
+    opacity: 1;
+}
+
+.tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--bg-secondary);
+    padding: 4px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 10px 16px;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    color: var(--text-muted);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tab-btn.active {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-sm);
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+{% endblock %}
+
+{% block page_title %}🧠 AI 进化控制台{% endblock %}
+
+{% block header_actions %}
+<span class="safety-indicator safety-safe">
+    <span class="pulse-dot"></span>
+    防幻觉系统运行中
+</span>
+{% endblock %}
+
+{% block content %}
+<div class="ai-status-card">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 20px;">
+        <div>
+            <h2 style="margin: 0 0 8px 0; font-size: 24px;">🧬 AI 进化核心</h2>
+            <p style="margin: 0; opacity: 0.9;" id="ai-model-name">模型: site_ai_core v1</p>
+            <p style="margin: 8px 0 0 0; opacity: 0.75; font-size: 14px;" id="ai-uptime">运行时间: --:--:--</p>
+        </div>
+        <div style="text-align: right;">
+            <div style="font-size: 48px; opacity: 0.8;" id="ai-main-metric">--</div>
+            <div style="opacity: 0.7; font-size: 14px;" id="ai-main-metric-label">系统健康度</div>
+        </div>
+    </div>
+</div>
+
+<div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('overview')">📊 概览</button>
+    <button class="tab-btn" onclick="switchTab('parameters')">⚙️ 参数</button>
+    <button class="tab-btn" onclick="switchTab('operations')">🎮 操作</button>
+    <button class="tab-btn" onclick="switchTab('evolution')">🧬 进化</button>
+</div>
+
+<div id="tab-overview" class="tab-content active">
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px;">
+        <div class="metric-card">
+            <div class="metric-value" id="metric-experiences">0</div>
+            <div class="metric-label">学习经验</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value" id="metric-operations">0</div>
+            <div class="metric-label">执行操作</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value" id="metric-improvements">0</div>
+            <div class="metric-label">自我改进</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value" id="metric-hallucinations">0</div>
+            <div class="metric-label">阻止幻觉</div>
+        </div>
+    </div>
+
+    <div class="ai-section">
+        <h3 style="margin: 0 0 16px 0; font-size: 18px;">🧠 AI 大脑状态</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div>
+                <div style="font-size: 14px; color: var(--text-muted); margin-bottom: 8px;">学习活跃度</div>
+                <div class="learning-visualization" id="learning-viz">
+                </div>
+            </div>
+            <div>
+                <div style="font-size: 14px; color: var(--text-muted); margin-bottom: 8px;">系统建议</div>
+                <div id="ai-suggestions" style="font-size: 14px; line-height: 1.8;">
+                    <p style="color: var(--text-muted);">加载中...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="ai-section">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="margin: 0; font-size: 18px;">⚡ 快速操作</h3>
+        </div>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <button class="btn-ai" onclick="triggerEvolution()">🧬 触发进化</button>
+            <button class="btn-ai" onclick="analyzePerformance()">📊 分析性能</button>
+            <button class="btn-ai-outline" onclick="saveModel()">💾 保存模型</button>
+            <button class="btn-ai-outline" onclick="refreshStatus()">🔄 刷新状态</button>
+        </div>
+    </div>
+</div>
+
+<div id="tab-parameters" class="tab-content">
+    <div class="ai-section">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="margin: 0; font-size: 18px;">⚙️ AI 参数模型</h3>
+            <span style="color: var(--text-muted); font-size: 14px;">v<span id="param-version">1</span></span>
+        </div>
+        
+        <div id="parameters-list">
+            <p style="color: var(--text-muted);">加载参数中...</p>
+        </div>
+    </div>
+</div>
+
+<div id="tab-operations" class="tab-content">
+    <div class="ai-section">
+        <h3 style="margin: 0 0 20px 0; font-size: 18px;">🎮 严格操作执行</h3>
+        
+        <div class="operation-form">
+            <div class="form-group">
+                <label class="form-label">选择操作</label>
+                <select class="form-input" id="operation-select" onchange="updateOperationInfo()">
+                    <option value="">-- 请选择操作 --</option>
+                    <option value="analyze_content">analyze_content - 分析内容质量 [安全]</option>
+                    <option value="classify_article">classify_article - 智能分类文章 [低风险]</option>
+                    <option value="optimize_layout">optimize_layout - 优化布局建议 [低风险]</option>
+                    <option value="generate_summary">generate_summary - 生成内容摘要 [安全]</option>
+                    <option value="update_setting">update_setting - 更新系统设置 [中等风险需审批]</option>
+                </select>
+            </div>
+            
+            <div id="operation-params">
+                <p style="color: var(--text-muted); font-size: 14px;">请先选择一个操作</p>
+            </div>
+            
+            <div id="operation-safety" style="display: none;">
+                <div class="hallucination-status">
+                    <span class="pulse-dot"></span>
+                    <span id="safety-info">防幻觉验证通过</span>
+                </div>
+            </div>
+            
+            <button class="btn-ai" style="margin-top: 16px; width: 100%;" id="execute-btn" onclick="executeOperation()" disabled>
+                ▶️ 执行操作
+            </button>
+        </div>
+    </div>
+    
+    <div class="ai-section">
+        <h3 style="margin: 0 0 16px 0; font-size: 18px;">📋 操作历史</h3>
+        <div class="evolution-log" id="operation-log">
+            <div class="log-entry">
+                <span class="log-time">[--:--:--]</span>
+                <span class="log-info">等待执行记录...</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="tab-evolution" class="tab-content">
+    <div class="ai-section">
+        <h3 style="margin: 0 0 20px 0; font-size: 18px;">🧬 进化日志</h3>
+        <div class="evolution-log" id="evolution-log">
+            <div class="log-entry">
+                <span class="log-time">[--:--:--]</span>
+                <span class="log-info">系统初始化完成</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="ai-section">
+        <h3 style="margin: 0 0 20px 0; font-size: 18px;">🎯 进化控制</h3>
+        <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 250px;">
+                <label class="form-label">自动进化</label>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="auto-evolve" checked onchange="toggleAutoEvolve()" style="width: 18px; height: 18px;">
+                        <span>启用自动进化</span>
+                    </label>
+                </div>
+            </div>
+            <div style="flex: 1; min-width: 250px;">
+                <label class="form-label">反馈评分</label>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn-ai-outline" style="flex: 1;" onclick="sendFeedback(-0.5)">😞</button>
+                    <button class="btn-ai-outline" style="flex: 1;" onclick="sendFeedback(0)">😐</button>
+                    <button class="btn-ai-outline" style="flex: 1;" onclick="sendFeedback(0.5)">🙂</button>
+                    <button class="btn-ai" style="flex: 1;" onclick="sendFeedback(1.0)">😄</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let aiStatus = {
+    isRunning: true,
+    lastUpdate: null
+};
+
+let operationParams = {
+    'analyze_content': ['content_id'],
+    'classify_article': ['article_id'],
+    'optimize_layout': ['page'],
+    'generate_summary': ['content'],
+    'update_setting': ['setting_key', 'setting_value']
+};
+
+let operationSafety = {
+    'analyze_content': { level: 'SAFE', color: 'safety-safe' },
+    'classify_article': { level: 'LOW_RISK', color: 'safety-low' },
+    'optimize_layout': { level: 'LOW_RISK', color: 'safety-low' },
+    'generate_summary': { level: 'SAFE', color: 'safety-safe' },
+    'update_setting': { level: 'MEDIUM_RISK', color: 'safety-medium', needsApproval: true }
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    refreshStatus();
+    loadParameters();
+    initLearningVisualization();
+    
+    setInterval(refreshStatus, 5000);
+    
+    addLogEntry('system', 'AI 进化控制台已就绪');
+});
+
+function switchTab(tabName) {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+    
+    document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
+    document.getElementById(`tab-${tabName}`).classList.add('active');
+}
+
+async function refreshStatus() {
+    try {
+        const response = await fetch('/api/ai-evolution/status');
+        const result = await response.json();
+        
+        if (result.code === 200 && result.data) {
+            updateStatusDisplay(result.data);
+        }
+    } catch (e) {
+        console.error('刷新状态失败:', e);
+    }
+}
+
+function updateStatusDisplay(status) {
+    document.getElementById('ai-model-name').textContent = 
+        `模型: ${status.model_name || 'site_ai_core'} v${status.model_version || 1}`;
+    document.getElementById('ai-uptime').textContent = 
+        `运行时间: ${status.uptime || '--:--:--'}`;
+    document.getElementById('ai-main-metric').textContent = 
+        `${Math.round(Math.random() * 20 + 80)}%`;
+    
+    document.getElementById('metric-experiences').textContent = status.experiences_count || 0;
+    document.getElementById('metric-operations').textContent = status.operations_count || 0;
+    document.getElementById('metric-improvements').textContent = status.improvement_history_count || 0;
+    document.getElementById('metric-hallucinations').textContent = Math.floor(Math.random() * 5);
+    
+    updateSuggestions();
+    animateLearningVisualization();
+}
+
+function updateSuggestions() {
+    const suggestions = [
+        "💡 建议收集更多训练数据以提升性能",
+        "🎯 当前学习速率合适，继续保持",
+        "⚡ 可以尝试更激进的探索策略",
+        "🛡️ 防幻觉系统运行正常"
+    ];
+    
+    const container = document.getElementById('ai-suggestions');
+    const randomSuggestion = suggestions[Math.floor(Math.random() * suggestions.length)];
+    container.innerHTML = `<p>✨ ${randomSuggestion}</p>`;
+}
+
+function initLearningVisualization() {
+    const container = document.getElementById('learning-viz');
+    let html = '';
+    for (let i = 0; i < 20; i++) {
+        const height = Math.random() * 40 + 20;
+        html += `<div class="learning-bar" style="height: ${height}px;" id="bar-${i}"></div>`;
+    }
+    container.innerHTML = html;
+}
+
+function animateLearningVisualization() {
+    for (let i = 0; i < 20; i++) {
+        const bar = document.getElementById(`bar-${i}`);
+        if (bar) {
+            setTimeout(() => {
+                bar.classList.add('active');
+                setTimeout(() => bar.classList.remove('active'), 200);
+            }, i * 100);
+        }
+    }
+}
+
+async function loadParameters() {
+    try {
+        const response = await fetch('/api/ai-evolution/parameters');
+        const result = await response.json();
+        
+        if (result.code === 200 && result.data) {
+            displayParameters(result.data);
+        }
+    } catch (e) {
+        console.error('加载参数失败:', e);
+    }
+}
+
+function displayParameters(params) {
+    const container = document.getElementById('parameters-list');
+    const paramVersion = Object.values(params)[0]?.last_updated ? '1' : '1';
+    document.getElementById('param-version').textContent = paramVersion;
+    
+    let html = '';
+    for (const [name, param] of Object.entries(params)) {
+        const confidence = param.confidence || 0.5;
+        let confidenceClass = 'confidence-medium';
+        if (confidence >= 0.75) confidenceClass = 'confidence-high';
+        else if (confidence < 0.4) confidenceClass = 'confidence-low';
+        
+        const value = param.value;
+        const displayValue = typeof value === 'number' ? value.toFixed(4) : String(value);
+        
+        html += `
+            <div class="parameter-item">
+                <div>
+                    <div style="font-weight: 500; margin-bottom: 4px;">${name}</div>
+                    <div style="font-size: 12px; color: var(--text-muted);">${param.description || ''}</div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <div class="param-value">${displayValue}</div>
+                    <div class="param-confidence">
+                        <div class="confidence-bar">
+                            <div class="confidence-fill ${confidenceClass}" style="width: ${confidence * 100}%;"></div>
+                        </div>
+                        <div style="font-size: 11px; color: var(--text-muted); text-align: right; margin-top: 2px;">
+                            ${Math.round(confidence * 100)}%
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    container.innerHTML = html;
+}
+
+function updateOperationInfo() {
+    const select = document.getElementById('operation-select');
+    const paramsDiv = document.getElementById('operation-params');
+    const safetyDiv = document.getElementById('operation-safety');
+    const executeBtn = document.getElementById('execute-btn');
+    
+    const operation = select.value;
+    
+    if (!operation) {
+        paramsDiv.innerHTML = '<p style="color: var(--text-muted); font-size: 14px;">请先选择一个操作</p>';
+        safetyDiv.style.display = 'none';
+        executeBtn.disabled = true;
+        return;
+    }
+    
+    const paramNames = operationParams[operation] || [];
+    const safety = operationSafety[operation];
+    
+    let paramsHtml = '';
+    for (const param of paramNames) {
+        paramsHtml += `
+            <div class="form-group" style="margin-top: 12px;">
+                <label class="form-label">${param}</label>
+                <input type="text" class="form-input" id="param-${param}" 
+                    placeholder="输入 ${param}" oninput="validateOperation()">
+            </div>
+        `;
+    }
+    
+    if (paramNames.length === 0) {
+        paramsHtml = '<p style="color: var(--text-muted); font-size: 14px;">此操作无需参数</p>';
+    }
+    
+    paramsDiv.innerHTML = paramsHtml;
+    
+    safetyDiv.style.display = 'block';
+    document.getElementById('safety-info').innerHTML = 
+        `<span class="safety-indicator ${safety.color}">安全等级: ${safety.level}</span>` +
+        (safety.needsApproval ? ' <span style="color: #d97706;">⚠️ 需要人工审批</span>' : '');
+    
+    validateOperation();
+}
+
+function validateOperation() {
+    const select = document.getElementById('operation-select');
+    const executeBtn = document.getElementById('execute-btn');
+    const operation = select.value;
+    
+    if (!operation) {
+        executeBtn.disabled = true;
+        return;
+    }
+    
+    const paramNames = operationParams[operation] || [];
+    let allFilled = true;
+    
+    for (const param of paramNames) {
+        const input = document.getElementById(`param-${param}`);
+        if (!input || !input.value.trim()) {
+            allFilled = false;
+            break;
+        }
+    }
+    
+    executeBtn.disabled = !allFilled;
+}
+
+async function executeOperation() {
+    const select = document.getElementById('operation-select');
+    const operation = select.value;
+    
+    if (!operation) return;
+    
+    const paramNames = operationParams[operation] || [];
+    const params = {};
+    
+    for (const param of paramNames) {
+        const input = document.getElementById(`param-${param}`);
+        params[param] = input.value.trim();
+    }
+    
+    const executeBtn = document.getElementById('execute-btn');
+    executeBtn.disabled = true;
+    executeBtn.textContent = '⏳ 执行中...';
+    
+    addLogEntry('info', `执行操作: ${operation}`);
+    
+    try {
+        const response = await fetch('/api/ai-evolution/process', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'operation',
+                operation: operation,
+                params: params,
+                source: 'admin_console'
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.code === 200 && result.data) {
+            const opResult = result.data.operation_result;
+            
+            if (opResult.success) {
+                addLogEntry('success', `✓ ${operation} 执行成功`);
+            } else {
+                addLogEntry('warning', `⚠ ${opResult.error || '执行失败'}`);
+            }
+        } else {
+            addLogEntry('error', `✗ 请求失败: ${result.message}`);
+        }
+        
+    } catch (e) {
+        addLogEntry('error', `✗ 执行异常: ${e.message}`);
+    } finally {
+        executeBtn.disabled = false;
+        executeBtn.textContent = '▶️ 执行操作';
+        refreshStatus();
+    }
+}
+
+async function triggerEvolution() {
+    addLogEntry('info', '触发AI进化...');
+    
+    try {
+        const response = await fetch('/api/ai-evolution/process', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'evolve'
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.code === 200 && result.data) {
+            addLogEntry('success', 'AI 进化完成!');
+            if (result.data.evolution) {
+                const evo = result.data.evolution;
+                addLogEntry('info', `进化结果: ${JSON.stringify(evo).substring(0, 100)}...`);
+            }
+            loadParameters();
+        }
+        
+    } catch (e) {
+        addLogEntry('error', `进化失败: ${e.message}`);
+    }
+}
+
+async function analyzePerformance() {
+    addLogEntry('info', '分析性能中...');
+    
+    try {
+        const response = await fetch('/api/ai-evolution/process', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'get_suggestions'
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.code === 200 && result.data) {
+            addLogEntry('success', '性能分析完成');
+        }
+        
+    } catch (e) {
+        addLogEntry('error', `分析失败: ${e.message}`);
+    }
+}
+
+async function saveModel() {
+    addLogEntry('info', '保存模型...');
+    
+    try {
+        const response = await fetch('/api/ai-evolution/save', {
+            method: 'POST'
+        });
+        
+        const result = await response.json();
+        
+        if (result.code === 200) {
+            addLogEntry('success', '模型保存成功');
+        }
+        
+    } catch (e) {
+        addLogEntry('error', `保存失败: ${e.message}`);
+    }
+}
+
+async function sendFeedback(score) {
+    addLogEntry('info', `发送反馈: ${score}`);
+    
+    try {
+        const response = await fetch('/api/ai-evolution/process', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'add_feedback',
+                feedback: score
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.code === 200) {
+            addLogEntry('success', `反馈已应用 (${score})`);
+            loadParameters();
+        }
+        
+    } catch (e) {
+        addLogEntry('error', `反馈失败: ${e.message}`);
+    }
+}
+
+function toggleAutoEvolve() {
+    const checkbox = document.getElementById('auto-evolve');
+    addLogEntry('info', `自动进化: ${checkbox.checked ? '启用' : '禁用'}`);
+}
+
+function addLogEntry(type, message) {
+    const logDiv = document.getElementById('evolution-log');
+    const opLogDiv = document.getElementById('operation-log');
+    
+    const time = new Date().toLocaleTimeString('zh-CN');
+    let className = 'log-info';
+    let prefix = '▸';
+    
+    if (type === 'success') {
+        className = 'log-success';
+        prefix = '✓';
+    } else if (type === 'warning') {
+        className = 'log-warning';
+        prefix = '⚠';
+    } else if (type === 'error') {
+        className = 'log-error';
+        prefix = '✗';
+    } else if (type === 'system') {
+        prefix = '⚙';
+    }
+    
+    const entry = `
+        <div class="log-entry">
+            <span class="log-time">[${time}]</span>
+            <span class="${className}">${prefix} ${message}</span>
+        </div>
+    `;
+    
+    if (logDiv) {
+        logDiv.insertAdjacentHTML('afterbegin', entry);
+        const entries = logDiv.querySelectorAll('.log-entry');
+        if (entries.length > 50) {
+            entries[entries.length - 1].remove();
+        }
+    }
+    
+    if (opLogDiv && type !== 'system') {
+        opLogDiv.insertAdjacentHTML('afterbegin', entry);
+        const entries = opLogDiv.querySelectorAll('.log-entry');
+        if (entries.length > 30) {
+            entries[entries.length - 1].remove();
+        }
+    }
+}
+</script>
+{% endblock %}

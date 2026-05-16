@@ -1622,5 +1622,114 @@ def init_ai_system():
         print("  智能功能将不可用，但网站仍可正常运行\n")
         return False
 
+# ============ AI 进化控制台 ============
+@app.route('/admin/ai/evolution')
+@login_required
+def admin_ai_evolution():
+    """AI进化控制台页面"""
+    return render_template('admin/ai_evolution.html')
+
+# ============ API - AI 进化系统 ============
+AI_EVOLUTION_CORE = None
+
+def get_ai_evolution_core():
+    """获取AI进化核心单例"""
+    global AI_EVOLUTION_CORE
+    if AI_EVOLUTION_CORE is None:
+        try:
+            from ai_evolution_core import get_ai_core
+            
+            model_path = '/tmp/ai_evolution_model.json'
+            if os.path.exists('/var/www/dongshushu-paper'):
+                model_path = '/var/www/dongshushu-paper/ai_evolution_model.json'
+            
+            AI_EVOLUTION_CORE = get_ai_core(model_path)
+            print("✅ AI 进化核心已初始化")
+        except Exception as e:
+            print(f"AI 进化核心初始化失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    return AI_EVOLUTION_CORE
+
+@app.route('/api/ai-evolution/status')
+@login_required
+def api_ai_evolution_status():
+    """获取AI进化系统状态"""
+    try:
+        core = get_ai_evolution_core()
+        if not core:
+            return api_response(None, 'AI核心未初始化', 500)
+        
+        status = core.get_status()
+        return api_response(status)
+    except Exception as e:
+        return api_response(None, f'获取状态失败: {str(e)}', 500)
+
+@app.route('/api/ai-evolution/parameters')
+@login_required
+def api_ai_evolution_parameters():
+    """获取AI参数"""
+    try:
+        core = get_ai_evolution_core()
+        if not core:
+            return api_response(None, 'AI核心未初始化', 500)
+        
+        params = {}
+        for name, param in core.model.parameters.items():
+            params[name] = {
+                'name': param.name,
+                'value': param.value,
+                'type': param.type,
+                'min_value': param.min_value,
+                'max_value': param.max_value,
+                'description': param.description,
+                'adaptive': param.adaptive,
+                'learning_rate': param.learning_rate,
+                'last_updated': param.last_updated,
+                'confidence': param.confidence
+            }
+        
+        return api_response(params)
+    except Exception as e:
+        return api_response(None, f'获取参数失败: {str(e)}', 500)
+
+@app.route('/api/ai-evolution/process', methods=['POST'])
+@login_required
+def api_ai_evolution_process():
+    """处理AI进化请求"""
+    try:
+        data = request.get_json() or {}
+        
+        core = get_ai_evolution_core()
+        if not core:
+            return api_response(None, 'AI核心未初始化', 500)
+        
+        result = core.process(data)
+        
+        username = session.get('admin_user', '')
+        log_admin_action('ai_evolution', 'AI进化操作', data, username=username)
+        
+        return api_response(result)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return api_response(None, f'处理失败: {str(e)}', 500)
+
+@app.route('/api/ai-evolution/save', methods=['POST'])
+@login_required
+def api_ai_evolution_save():
+    """保存AI模型"""
+    try:
+        core = get_ai_evolution_core()
+        if not core:
+            return api_response(None, 'AI核心未初始化', 500)
+        
+        success = core.save()
+        return api_response({'success': success})
+    except Exception as e:
+        return api_response(None, f'保存失败: {str(e)}', 500)
+
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)
