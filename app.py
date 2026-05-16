@@ -43,9 +43,10 @@ CATEGORY_MAP = {
     "qiche": "汽车",
     "youxi": "游戏",
     "kaiyuan": "开源推荐",
+    "yiliao": "医疗健康",
 }
 NAME_TO_SLUG = {v: k for k, v in CATEGORY_MAP.items() if k != "index"}
-ALL_CATEGORIES = ["时政热点", "科技头条", "智能AI", "安全攻防", "开发者生态", "数码硬件", "社会热点", "汽车", "游戏", "开源推荐"]
+ALL_CATEGORIES = ["时政热点", "科技头条", "智能AI", "安全攻防", "开发者生态", "数码硬件", "社会热点", "汽车", "游戏", "开源推荐", "医疗健康"]
 
 MESSAGE_BLACKLIST = ['赌博', '博彩', '彩票', '色情', '诈骗', '刷单', '微信', 'vx', 'vpn', '翻墙']
 
@@ -953,7 +954,11 @@ def admin_action_log():
 @app.route('/admin/cron-log')
 @login_required
 def admin_cron_log():
-    log_file = '/var/www/dongshushu-paper/cron_collect.log'
+    # 自动检测日志路径
+    log_file = '/workspace/66bd-net/cron_collect.log'
+    if os.path.exists('/var/www/dongshushu-paper/cron_collect.log'):
+        log_file = '/var/www/dongshushu-paper/cron_collect.log'
+    
     logs = []
     try:
         with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
@@ -968,7 +973,12 @@ def admin_cron_log():
 def admin_trigger_cron():
     import subprocess
     try:
-        subprocess.Popen(['python3', '/var/www/dongshushu-paper/cron_collect.py'], 
+        # 自动检测脚本路径
+        script_path = '/workspace/66bd-net/cron_collect.py'
+        if os.path.exists('/var/www/dongshushu-paper/cron_collect.py'):
+            script_path = '/var/www/dongshushu-paper/cron_collect.py'
+            
+        subprocess.Popen(['python3', script_path], 
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         # 记录日志
         log_admin_action('cron_trigger', '内容采集', {}, username=session.get('admin_user', ''))
@@ -1152,12 +1162,6 @@ def translate_text(text): return text
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)
 
-# ============ API - 服务器监控 ============
-@app.route('/admin/monitor')
-@login_required
-def admin_monitor():
-    return render_template('admin/monitor.html')
-
 # ============ GitHub 自动更新功能 ============
 import time
 
@@ -1170,12 +1174,18 @@ _update_cache = {
 }
 _update_lock = threading.Lock()
 
+# 项目根目录配置
+PROJECT_ROOT = '/workspace/66bd-net'
+import os
+if os.path.exists('/var/www/dongshushu-paper'):
+    PROJECT_ROOT = '/var/www/dongshushu-paper'
+
 def get_current_commit():
     """获取当前本地 commit hash"""
     try:
         result = subprocess.check_output(
             ['git', 'rev-parse', 'HEAD'],
-            cwd='/workspace/66bd-net',
+            cwd=PROJECT_ROOT,
             text=True
         ).strip()
         return result
@@ -1261,7 +1271,7 @@ def api_update_perform():
         # 执行 git pull
         result = subprocess.check_output(
             ['git', 'pull', 'origin', 'master'],
-            cwd='/workspace/66bd-net',
+            cwd=PROJECT_ROOT,
             text=True,
             stderr=subprocess.STDOUT
         )
