@@ -450,7 +450,19 @@ def is_forbidden_content(title, content=""):
     return False
 
 def refine_category(title, content, default_category):
-    """根据关键词二次分类 - 优先级从高到低"""
+    """根据关键词二次分类 - 优先级从高到低（集成AI分类器）"""
+    
+    # 尝试使用AI分类器
+    try:
+        from ai_classifier import smart_classify
+        ai_result = smart_classify(title, content)
+        if ai_result and ai_result.get('confidence', 0) > 0.6:
+            logger.info(f"🤖 AI分类: {title[:30]}... -> {ai_result['category']} (置信度: {ai_result['confidence']:.2%})")
+            return ai_result['category']
+    except Exception as e:
+        logger.warning(f"AI分类失败，使用规则分类: {e}")
+    
+    # 备选：基于规则的分类
     text = (title + " " + content).lower()
     
     # 优先级顺序：医疗健康 > 游戏 > 汽车 > 数码硬件 > 社会热点 > 安全 > AI > 开源 > 时政 > 开发者 > 科技头条
