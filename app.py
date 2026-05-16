@@ -1317,6 +1317,32 @@ def admin_update():
 def admin_monitor():
     return render_template('admin/monitor.html')
 
+# ============ AI智能中心 ============
+@app.route('/admin/ai')
+@login_required
+def admin_ai():
+    """AI智能中心页面"""
+    return render_template('admin/ai_center.html')
+
+@app.route('/admin/ai/classify')
+@login_required
+def admin_ai_classify():
+    """AI智能分类页面"""
+    return render_template('admin/ai_classify.html')
+
+@app.route('/admin/ai/tags')
+@login_required
+def admin_ai_tags():
+    """AI自动标签页面"""
+    return render_template('admin/ai_tags.html')
+
+@app.route('/admin/ai/recommend')
+@login_required
+def admin_ai_recommend():
+    """AI推荐分析页面"""
+    return render_template('admin/ai_recommend.html')
+
+
 @app.route('/api/server/stats')
 @login_required
 def server_stats():
